@@ -86,6 +86,9 @@ let negocioActual = null;  // "pancho" | "heladeria"
 let seccionActual = null;  // "gastos" | "facturado" | "resumen"
 let selectedPagador = null;
 let selectedRegistrador = null;
+let selectedTurno = null; // "mañana" | "tarde" | "noche" — turno del cierre que se está cargando
+const TURNOS = ["mañana", "tarde", "noche"];
+const TURNO_LABEL = { "mañana": "Mañana", "tarde": "Tarde", "noche": "Noche" };
 let resumenMesOffset = 0;  // 0 = mes actual, -1 = mes anterior, etc. (Resumen mensual)
 let pendingFirebaseConfig = null; // config guardada entre el paso 1 y 2 del setup inicial
 let usuarioActual = null;  // nombre con el que se identificó este celular (ver resumeSession)
@@ -697,11 +700,17 @@ function renderFacturado() {
 
   const now = new Date();
   let totalMes = 0;
+  let totalHoy = 0;
+  const turnosHoy = new Set();
 
   items.forEach(f => {
     const fecha = f.fecha && f.fecha.toDate ? f.fecha.toDate() : new Date(f.fecha || Date.now());
     if (fecha.getMonth() === now.getMonth() && fecha.getFullYear() === now.getFullYear()) {
       totalMes += Number(f.importe) || 0;
+    }
+    if (fecha.toDateString() === now.toDateString()) {
+      totalHoy += Number(f.importe) || 0;
+      if (TURNOS.includes(f.turno)) turnosHoy.add(f.turno);
     }
 
     const adminBtns = esAdmin
@@ -709,12 +718,14 @@ function renderFacturado() {
          <button type="button" class="icon-btn danger cierre-delete-btn" data-id="${f.id}" aria-label="Borrar cierre">🗑️</button>`
       : "";
 
+    const turnoLabel = TURNO_LABEL[f.turno] || "";
+
     const li = document.createElement("li");
     li.className = "expense-item";
     li.innerHTML = `
       <div class="avatar" style="background:${payerColorVar(f.registradoPor)}">${socioInitial(f.registradoPor)}</div>
       <div class="info">
-        <div class="desc">${fecha.toLocaleDateString("es-AR", { weekday: "long", day: "2-digit", month: "short" })}</div>
+        <div class="desc">${turnoLabel ? escapeHtml(turnoLabel) + " — " : ""}${fecha.toLocaleDateString("es-AR", { weekday: "long", day: "2-digit", month: "short" })}</div>
         <div class="meta">Cargado por ${escapeHtml(f.registradoPor || "?")}</div>
       </div>
       <div class="amount">${money(f.importe)}</div>
@@ -724,6 +735,8 @@ function renderFacturado() {
   });
 
   $("#facturado-total-mes").textContent = money(totalMes);
+  $("#facturado-total-hoy").textContent = money(totalHoy);
+  $("#facturado-turnos-hoy").textContent = `${turnosHoy.size} de ${TURNOS.length} turnos cargados`;
 }
 
 // ---------- Render: Ideas (checklist compartido) ----------
@@ -1461,6 +1474,7 @@ function openModalFacturado(cierre) {
   selectedRegistrador = cierre
     ? cierre.registradoPor
     : (allPagadores().includes(usuarioActual) ? usuarioActual : null);
+  selectedTurno = cierre ? (cierre.turno || null) : null;
 
   $("#input-importe-fact").value = cierre ? cierre.importe : "";
   if (cierre) {
@@ -1472,6 +1486,7 @@ function openModalFacturado(cierre) {
   $("#modal-fact-title").textContent = cierre ? "Editar cierre" : "Nuevo cierre";
   $("#btn-save-facturado").textContent = cierre ? "Guardar cambios" : "Guardar";
   $$("#pagador-options-fact .pagador-chip").forEach(c => c.classList.toggle("selected", c.textContent === selectedRegistrador));
+  $$("#turno-options .pagador-chip").forEach(c => c.classList.toggle("selected", c.dataset.turno === selectedTurno));
   $("#modal-fact-error").classList.add("hidden");
   $("#modal-add-facturado").classList.add("active");
   setTimeout(() => $("#input-importe-fact").focus(), 150);
@@ -1492,6 +1507,11 @@ async function saveCierre() {
     errEl.classList.remove("hidden");
     return;
   }
+  if (!selectedTurno) {
+    errEl.textContent = "Elegí el turno.";
+    errEl.classList.remove("hidden");
+    return;
+  }
   if (!selectedRegistrador) {
     errEl.textContent = "Elegí quién lo cargó.";
     errEl.classList.remove("hidden");
@@ -1506,6 +1526,7 @@ async function saveCierre() {
   try {
     const data = {
       importe,
+      turno: selectedTurno,
       registradoPor: selectedRegistrador,
       negocio: negocioActual,
       fecha: fechaStr ? new Date(fechaStr + "T12:00:00") : fbSdk.serverTimestamp()
@@ -1737,6 +1758,13 @@ function wireEvents() {
     renderResumen();
   });
   $("#fab-add-facturado").addEventListener("click", () => openModalFacturado());
+  $("#turno-options").addEventListener("click", (e) => {
+    const chip = e.target.closest(".pagador-chip");
+    if (!chip) return;
+    selectedTurno = chip.dataset.turno;
+    $$("#turno-options .pagador-chip").forEach(c => c.classList.remove("selected"));
+    chip.classList.add("selected");
+  });
   $("#btn-cancel-add-facturado").addEventListener("click", closeModalFacturado);
   $("#btn-save-facturado").addEventListener("click", saveCierre);
   $("#modal-add-facturado").addEventListener("click", (e) => {

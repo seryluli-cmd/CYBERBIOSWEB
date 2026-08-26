@@ -313,6 +313,12 @@
 
     <section class="tab active">
       <div class="stat-hero">
+        <div class="stat-hero-label">Hoy</div>
+        <div class="stat-hero-value" id="facturado-total-hoy">$0</div>
+        <div class="stat-hero-sub" id="facturado-turnos-hoy">0 de 3 turnos cargados</div>
+      </div>
+
+      <div class="stat-hero">
         <div class="stat-hero-label">Facturado este mes</div>
         <div class="stat-hero-value" id="facturado-total-mes">$0</div>
       </div>
@@ -460,6 +466,15 @@
       <div class="field">
         <label for="input-fecha-fact">Fecha del cierre</label>
         <input type="date" id="input-fecha-fact">
+      </div>
+
+      <div class="field">
+        <label>¿Qué turno?</label>
+        <div id="turno-options" class="pagador-options">
+          <div class="pagador-chip" data-turno="mañana">Mañana</div>
+          <div class="pagador-chip" data-turno="tarde">Tarde</div>
+          <div class="pagador-chip" data-turno="noche">Noche</div>
+        </div>
       </div>
 
       <div class="field">

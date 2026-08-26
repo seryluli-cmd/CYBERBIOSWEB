@@ -66,7 +66,12 @@ profundizar; acá va un resumen adaptado.
   incluye — no hay checkbox de admin en el setup porque no hace falta
   elegir. `colaboradores` (empleados) se puede editar después desde Ajustes.
 - **`gastos`** — `{ importe, descripcion, categoria, pagadoPor, negocio, fecha, creadoEn, fotoUrl?, fotoPath? }`.
-- **`facturacion`** — `{ importe, registradoPor, negocio, fecha, creadoEn }`.
+- **`facturacion`** — `{ importe, turno, registradoPor, negocio, fecha, creadoEn }`.
+  `turno` es `"mañana"` | `"tarde"` | `"noche"` (constante `TURNOS` en app.js) —
+  CyberBIOS tiene 3 turnos por día, cada uno carga su propia caja como un
+  cierre separado. La pantalla de Facturado suma los de **hoy** aparte
+  (`facturado-total-hoy` / `facturado-turnos-hoy`, "X de 3 turnos cargados")
+  además del total del mes.
 - **`ideas`** — `{ texto, estado, votos, propuestoPor, creadoEn }`. `estado`
   es `"pendiente"` o `"concretada"`; `votos` es un array de nombres (🔥,
   toggle libre). Pendientes ordenadas por cantidad de votos. Cualquiera
