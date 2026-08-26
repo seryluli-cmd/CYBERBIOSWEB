@@ -936,6 +936,48 @@ function renderResumen() {
   $("#resumen-total-gastos").textContent = money(totalGastos);
   $("#resumen-cant-gastos").textContent = gastosMes.length === 1 ? "1 gasto cargado" : `${gastosMes.length} gastos cargados`;
 
+  // Agrupa los cierres del mes por día calendario, y dentro de cada día
+  // por turno — para ver de un vistazo cuánto se trabajó cada día y cómo
+  // se repartió entre Mañana/Tarde/Noche.
+  const porDiaMap = new Map();
+  factMes.forEach(f => {
+    const d = fechaDeRegistro(f);
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    if (!porDiaMap.has(key)) {
+      porDiaMap.set(key, { fecha: d, total: 0, turnos: { "mañana": 0, "tarde": 0, "noche": 0 } });
+    }
+    const entry = porDiaMap.get(key);
+    const importe = Number(f.importe) || 0;
+    entry.total += importe;
+    if (TURNOS.includes(f.turno)) entry.turnos[f.turno] += importe;
+  });
+  const dias = Array.from(porDiaMap.values()).sort((a, b) => b.fecha - a.fecha);
+
+  const diaWrap = $("#resumen-por-dia");
+  const diaEmptyEl = $("#resumen-por-dia-empty");
+  diaWrap.innerHTML = "";
+  if (!dias.length) {
+    diaEmptyEl.classList.remove("hidden");
+  } else {
+    diaEmptyEl.classList.add("hidden");
+    dias.forEach(dia => {
+      const esHoy = dia.fecha.toDateString() === now.toDateString();
+      const card = document.createElement("div");
+      card.className = "socio-total-card";
+      const turnosHtml = TURNOS.map(t =>
+        `<span>${TURNO_LABEL[t]}: ${money(dia.turnos[t])}</span>`
+      ).join("");
+      card.innerHTML = `
+        <div class="socio-total-row">
+          <div class="socio-total-name">${esHoy ? "Hoy" : dia.fecha.toLocaleDateString("es-AR", { weekday: "short", day: "2-digit", month: "short" })}</div>
+          <div class="socio-total-amount">${money(dia.total)}</div>
+        </div>
+        <div class="resumen-turnos-row">${turnosHtml}</div>
+      `;
+      diaWrap.appendChild(card);
+    });
+  }
+
   const porCategoria = {};
   gastosMes.forEach(g => {
     const cat = g.categoria || "Otros";

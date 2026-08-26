@@ -73,7 +73,9 @@ profundizar; acá va un resumen adaptado.
   06-14, tarde 14-22, noche 22-06) al abrir "Nuevo cierre", pero se puede
   cambiar a mano. La pantalla de Facturado suma los de **hoy** aparte
   (`facturado-total-hoy` / `facturado-turnos-hoy`, "X de 3 turnos cargados")
-  además del total del mes.
+  además del total del mes. El **Resumen mensual** también tiene una
+  sección "Facturado por día y turno" que agrupa los cierres del mes por
+  día calendario y muestra el total de cada turno dentro de ese día.
 - **`ideas`** — `{ texto, estado, votos, propuestoPor, creadoEn }`. `estado`
   es `"pendiente"` o `"concretada"`; `votos` es un array de nombres (🔥,
   toggle libre). Pendientes ordenadas por cantidad de votos. Cualquiera
