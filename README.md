@@ -69,7 +69,9 @@ profundizar; acá va un resumen adaptado.
 - **`facturacion`** — `{ importe, turno, registradoPor, negocio, fecha, creadoEn }`.
   `turno` es `"mañana"` | `"tarde"` | `"noche"` (constante `TURNOS` en app.js) —
   CyberBIOS tiene 3 turnos por día, cada uno carga su propia caja como un
-  cierre separado. La pantalla de Facturado suma los de **hoy** aparte
+  cierre separado. `turnoActual()` propone el turno según la hora (mañana
+  06-14, tarde 14-22, noche 22-06) al abrir "Nuevo cierre", pero se puede
+  cambiar a mano. La pantalla de Facturado suma los de **hoy** aparte
   (`facturado-total-hoy` / `facturado-turnos-hoy`, "X de 3 turnos cargados")
   además del total del mes.
 - **`ideas`** — `{ texto, estado, votos, propuestoPor, creadoEn }`. `estado`

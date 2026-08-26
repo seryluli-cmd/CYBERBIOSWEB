@@ -89,6 +89,22 @@ let selectedRegistrador = null;
 let selectedTurno = null; // "mañana" | "tarde" | "noche" — turno del cierre que se está cargando
 const TURNOS = ["mañana", "tarde", "noche"];
 const TURNO_LABEL = { "mañana": "Mañana", "tarde": "Tarde", "noche": "Noche" };
+
+// Mañana 06-14, Tarde 14-22, Noche 22-06 (cruza medianoche) — con 40 min de
+// gracia: quien cierra el turno anterior tarda un rato en cargarlo, así que
+// el turno saliente sigue siendo "el actual" hasta 40 min después de su
+// hora nominal de cierre (ej: a las 6:20 todavía propone "noche", no
+// "mañana", porque lo más probable es que estén cerrando la noche).
+const TURNO_GRACIA_MIN = 40;
+function turnoActual() {
+  const now = new Date();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  // > (no >=): a los 40 min exactos todavía es el turno saliente cerrando,
+  // recién al minuto 41 se considera empezado el turno siguiente.
+  if (mins > 6 * 60 + TURNO_GRACIA_MIN && mins <= 14 * 60 + TURNO_GRACIA_MIN) return "mañana";
+  if (mins > 14 * 60 + TURNO_GRACIA_MIN && mins <= 22 * 60 + TURNO_GRACIA_MIN) return "tarde";
+  return "noche";
+}
 let resumenMesOffset = 0;  // 0 = mes actual, -1 = mes anterior, etc. (Resumen mensual)
 let pendingFirebaseConfig = null; // config guardada entre el paso 1 y 2 del setup inicial
 let usuarioActual = null;  // nombre con el que se identificó este celular (ver resumeSession)
@@ -1474,7 +1490,7 @@ function openModalFacturado(cierre) {
   selectedRegistrador = cierre
     ? cierre.registradoPor
     : (allPagadores().includes(usuarioActual) ? usuarioActual : null);
-  selectedTurno = cierre ? (cierre.turno || null) : null;
+  selectedTurno = cierre ? (cierre.turno || null) : turnoActual();
 
   $("#input-importe-fact").value = cierre ? cierre.importe : "";
   if (cierre) {
