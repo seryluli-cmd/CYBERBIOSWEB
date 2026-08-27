@@ -100,7 +100,7 @@ los datos de alguien mal intencionado con la config.
 ```
 screen-quien-sos (identificarte con PIN)
   └─ screen-seccion (auto-entra directo, un solo negocio — elegir
-       Gastos / Facturado / Resumen mensual / Ideas-Metas)
+       Gastos / Facturado / Resumen mensual / Caja de IDEAS)
        ├─ screen-app       (tabs: Gastos, Balance*, Ajustes)
        ├─ screen-facturado
        ├─ screen-resumen

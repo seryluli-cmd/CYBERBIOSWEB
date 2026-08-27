@@ -120,8 +120,8 @@
       <button type="button" id="btn-ideas-main" class="negocio-card idea-negocio-card">
         <div class="negocio-emoji">💡</div>
         <div class="negocio-info">
-          <div class="negocio-nombre">Ideas/Metas</div>
-          <div class="negocio-sub">Para mejorar el negocio</div>
+          <div class="negocio-nombre">Caja de IDEAS</div>
+          <div class="negocio-sub">Para mejorar el negocio y el entorno laboral</div>
         </div>
       </button>
 
@@ -130,14 +130,14 @@
     </div>
   </div>
 
-  <!-- ===== PANTALLA: IDEAS (compartida entre los 2 negocios) ===== -->
+  <!-- ===== PANTALLA: IDEAS ===== -->
   <div id="screen-ideas" class="screen">
 
     <header class="topbar">
       <button id="btn-back-from-ideas" class="topbar-title" aria-label="Volver">
         <span class="topbar-back-arrow">←</span>
         <span class="logo-badge small">💡</span>
-        <span>Ideas/Metas</span>
+        <span>Caja de IDEAS</span>
       </button>
     </header>
 
@@ -306,7 +306,7 @@
       <button id="btn-back-to-seccion-fact" class="topbar-title" aria-label="Volver a la sección">
         <span class="topbar-back-arrow">←</span>
         <span class="logo-badge small" id="facturado-icon-badge">$</span>
-        <span id="facturado-titulo">Facturado</span>
+        <span id="facturado-titulo">Cierre de Turno</span>
       </button>
       <div class="sync-dot" id="sync-dot-fact" title="Sincronizado"></div>
     </header>
@@ -426,7 +426,7 @@
         </select>
       </div>
 
-      <div class="field">
+      <div class="field" id="campo-pagador">
         <label>¿Quién pagó?</label>
         <div id="pagador-options" class="pagador-options"></div>
       </div>
@@ -481,7 +481,7 @@
         </div>
       </div>
 
-      <div class="field">
+      <div class="field" id="campo-pagador-fact">
         <label>¿Quién lo cargó?</label>
         <div id="pagador-options-fact" class="pagador-options"></div>
       </div>
@@ -524,11 +524,11 @@
 
       <div class="field">
         <label for="pin-input-1" id="pin-label-1">PIN</label>
-        <input type="password" id="pin-input-1" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="••••">
+        <input type="text" id="pin-input-1" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="••••" autocomplete="off">
       </div>
       <div class="field hidden" id="pin-field-2">
         <label for="pin-input-2">Repetí el PIN</label>
-        <input type="password" id="pin-input-2" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="••••">
+        <input type="text" id="pin-input-2" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="••••" autocomplete="off">
       </div>
 
       <p id="pin-error" class="error-text hidden"></p>

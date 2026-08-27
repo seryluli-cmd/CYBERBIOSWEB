@@ -141,6 +141,16 @@ input:focus, select:focus, textarea:focus {
   outline-offset: 1px;
 }
 
+/* El PIN usa type="text" (no "password") a propósito, para que el
+   navegador no lo confunda con un login real y ofrezca "guardar la
+   contraseña" (pasaba en Chrome/Android, tapando la pantalla con un
+   cartel molesto). Esto le devuelve el enmascarado visual con puntitos
+   sin volver a activar ese comportamiento. */
+.pin-input {
+  -webkit-text-security: disc;
+  text-security: disc;
+}
+
 .checkbox-label {
   display: flex;
   align-items: center;

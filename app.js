@@ -79,10 +79,10 @@ let socios = [];           // ["Sergio"] — el/los dueño(s), entran en el repa
 let colaboradores = [];    // ["Encargada"] — pueden pagar/cargar, NO entran en el reparto
 let admins = [];           // subconjunto de nombres (normalmente socios) con permiso para editar/borrar
 let pins = {};             // { "Sergio": "1234", ... } — PIN fijo de 4 dígitos por persona (ver README: no es seguridad real, solo identificación)
-let gastos = [];           // TODOS los gastos, de los 2 negocios — [{id, importe, descripcion, categoria, pagadoPor, fecha, negocio}]
-let facturaciones = [];    // TODOS los cierres diarios, de los 2 negocios — [{id, importe, registradoPor, fecha, negocio}]
-let ideas = [];            // Ideas de mejora, COMPARTIDAS entre los 2 negocios (no tienen campo "negocio") — [{id, texto, estado, propuestoPor, creadoEn}]
-let negocioActual = null;  // "pancho" | "heladeria"
+let gastos = [];           // TODOS los gastos — [{id, importe, descripcion, categoria, pagadoPor, fecha, negocio}]
+let facturaciones = [];    // TODOS los cierres diarios — [{id, importe, registradoPor, fecha, negocio}]
+let ideas = [];            // Ideas de mejora — [{id, texto, estado, propuestoPor, creadoEn}]
+let negocioActual = null;  // "cyberbios" (siempre — acá hay un solo negocio)
 let seccionActual = null;  // "gastos" | "facturado" | "resumen"
 let selectedPagador = null;
 let selectedRegistrador = null;
@@ -129,6 +129,19 @@ function mesLabel(date) {
 }
 function fechaDeRegistro(item) {
   return item.fecha && item.fecha.toDate ? item.fecha.toDate() : new Date(item.fecha || Date.now());
+}
+
+// Arma un texto "YYYY-MM-DD" (el formato que usa <input type="date">) con
+// el año/mes/día LOCALES del dispositivo. A propósito NO se usa
+// date.toISOString() para esto: ese método convierte a UTC primero, y
+// como Argentina está 3 horas atrás, entre las ~21:00 y la medianoche
+// hora local ya es "mañana" en UTC — toISOString() se adelantaba un día
+// justo en esas horas (pasaba tanto al cargar un Gasto como un Cierre).
+function fechaLocalISO(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 // Redimensiona y comprime la foto en el navegador antes de subirla, para que
@@ -477,8 +490,8 @@ function selectNegocio(id) {
   $("#negocio-icon-badge").textContent = biz.emoji;
   $("#negocio-icon-badge").style.background = biz.color;
 
-  // Pantalla "Facturado" — badge del topbar
-  $("#facturado-titulo").textContent = biz.nombre + " — Facturado";
+  // Pantalla "Cierre de Turno" — badge del topbar
+  $("#facturado-titulo").textContent = biz.nombre + " — Cierre de Turno";
   $("#facturado-icon-badge").textContent = biz.emoji;
   $("#facturado-icon-badge").style.background = biz.color;
 
@@ -502,9 +515,9 @@ function renderSeccionCards(biz) {
 
   const SECCIONES = [
     { id: "gastos", emoji: "🧾", nombre: "Gastos", sub: "Cargar gastos y ver el balance entre socios" },
-    { id: "facturado", emoji: "💰", nombre: "Facturado", sub: "Anotar lo que se facturó cada día" },
+    { id: "facturado", emoji: "💰", nombre: "Cierre de Turno", sub: "Anotar efectivo y Digital" },
     { id: "resumen", emoji: "📊", nombre: "Resumen mensual", sub: "Ver los totales de cada mes" },
-    { id: "ideas", emoji: "💡", nombre: "Ideas/Metas", sub: "Aportar ideas para mejorar el negocio" }
+    { id: "ideas", emoji: "💡", nombre: "Caja de IDEAS", sub: "Aportar ideas para mejorar el negocio y el entorno laboral" }
   ];
 
   const wrap = $("#seccion-cards");
@@ -616,7 +629,7 @@ function listenFacturacion() {
   });
 }
 
-// Compartidas entre los 2 negocios a propósito — no se filtran por "negocio".
+// No se filtran por "negocio" (acá hay un solo negocio, no hace falta).
 function listenIdeas() {
   const q = fbSdk.query(fbSdk.collection(db, "ideas"), fbSdk.orderBy("creadoEn", "desc"));
   fbSdk.onSnapshot(q, (snapshot) => {
@@ -736,13 +749,22 @@ function renderFacturado() {
 
     const turnoLabel = TURNO_LABEL[f.turno] || "";
 
+    // "creadoEn" es la hora REAL en que se guardó el cierre (a diferencia
+    // de "fecha", que es solo el día elegido, guardado siempre al
+    // mediodía — ver saveCierre). Los cierres de antes de este cambio no
+    // tienen "creadoEn", por eso el chequeo: en esos casos no se muestra
+    // ninguna hora en vez de mostrar una incorrecta.
+    const horaCarga = f.creadoEn && f.creadoEn.toDate
+      ? f.creadoEn.toDate().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })
+      : null;
+
     const li = document.createElement("li");
     li.className = "expense-item";
     li.innerHTML = `
       <div class="avatar" style="background:${payerColorVar(f.registradoPor)}">${socioInitial(f.registradoPor)}</div>
       <div class="info">
         <div class="desc">${turnoLabel ? escapeHtml(turnoLabel) + " — " : ""}${fecha.toLocaleDateString("es-AR", { weekday: "long", day: "2-digit", month: "short" })}</div>
-        <div class="meta">Cargado por ${escapeHtml(f.registradoPor || "?")}</div>
+        <div class="meta">Cargado por ${escapeHtml(f.registradoPor || "?")}${horaCarga ? " a las " + horaCarga : ""}</div>
       </div>
       <div class="amount">${money(f.importe)}</div>
       ${adminBtns}
@@ -1361,7 +1383,7 @@ function exportGastosCSV() {
         g.pagadoPor || ""
       ]);
     });
-  downloadCSV(`gastos-${negocioActual}-${new Date().toISOString().slice(0, 10)}.csv`, rows);
+  downloadCSV(`gastos-${negocioActual}-${fechaLocalISO(new Date())}.csv`, rows);
 }
 
 function exportFacturacionCSV() {
@@ -1376,13 +1398,13 @@ function exportFacturacionCSV() {
         f.registradoPor || ""
       ]);
     });
-  downloadCSV(`facturacion-${negocioActual}-${new Date().toISOString().slice(0, 10)}.csv`, rows);
+  downloadCSV(`facturacion-${negocioActual}-${fechaLocalISO(new Date())}.csv`, rows);
 }
 
 function setDefaultFecha() {
   const el = $("#input-fecha");
   const today = new Date();
-  el.value = today.toISOString().slice(0, 10);
+  el.value = fechaLocalISO(today);
 }
 
 // ---------- Modal: agregar gasto ----------
@@ -1397,15 +1419,17 @@ function resetFotoField() {
 // (solo accesible para el admin, ver botón ✏️ en renderGastos).
 function openModal(gasto) {
   editingGastoId = gasto ? gasto.id : null;
-  selectedPagador = gasto
-    ? gasto.pagadoPor
-    : (allPagadores().includes(usuarioActual) ? usuarioActual : null);
+  // Un gasto nuevo queda a nombre de quien está identificado en este
+  // celular — no hace falta preguntar, si ya se identificó al entrar. Al
+  // EDITAR uno existente sí se muestra el selector, por si hay que
+  // reasignarlo (ver #campo-pagador más abajo).
+  selectedPagador = gasto ? gasto.pagadoPor : usuarioActual;
 
   $("#input-importe").value = gasto ? gasto.importe : "";
   $("#input-descripcion").value = gasto ? (gasto.descripcion || "") : "";
   $("#input-categoria").value = gasto ? (gasto.categoria || "Insumos") : "Insumos";
   if (gasto) {
-    $("#input-fecha").value = fechaDeRegistro(gasto).toISOString().slice(0, 10);
+    $("#input-fecha").value = fechaLocalISO(fechaDeRegistro(gasto));
   } else {
     setDefaultFecha();
   }
@@ -1413,6 +1437,7 @@ function openModal(gasto) {
 
   $("#modal-add-title").textContent = gasto ? "Editar gasto" : "Nuevo gasto";
   $("#btn-save-add").textContent = gasto ? "Guardar cambios" : "Guardar gasto";
+  $("#campo-pagador").classList.toggle("hidden", !gasto);
   $$(".pagador-chip").forEach(c => c.classList.toggle("selected", c.textContent === selectedPagador));
   $("#modal-error").classList.add("hidden");
   $("#modal-add").classList.add("active");
@@ -1521,28 +1546,48 @@ async function deleteGasto(id) {
 }
 
 // ---------- Modal: agregar cierre de Facturado ----------
+
+// Fecha "natural" (de calendario) de un turno, para proponerla por
+// defecto. Noche es especial porque cruza la medianoche: si todavía no
+// dieron las 22hs de HOY, el turno Noche más reciente es el de ANOCHE
+// (arrancó ayer) — recién a partir de las 22hs pasa a ser el de esta
+// noche. Sin este ajuste, cerrar el turno Noche después de medianoche
+// quedaba fechado al día (y a veces al MES) siguiente, en vez del día en
+// que realmente arrancó.
+function fechaParaTurno(turno) {
+  const hoy = new Date();
+  if (turno === "noche" && hoy.getHours() < 22) {
+    const ayer = new Date(hoy);
+    ayer.setDate(ayer.getDate() - 1);
+    return ayer;
+  }
+  return hoy;
+}
+
 function setDefaultFechaFact() {
-  $("#input-fecha-fact").value = new Date().toISOString().slice(0, 10);
+  $("#input-fecha-fact").value = fechaLocalISO(fechaParaTurno(turnoActual()));
 }
 
 // Sin argumento: alta de un cierre nuevo. Con un cierre existente: edición
 // (solo admin, ver botón ✏️ en renderFacturado).
 function openModalFacturado(cierre) {
   editingCierreId = cierre ? cierre.id : null;
-  selectedRegistrador = cierre
-    ? cierre.registradoPor
-    : (allPagadores().includes(usuarioActual) ? usuarioActual : null);
+  // Mismo criterio que en Nuevo gasto (ver openModal): un cierre nuevo
+  // queda a nombre de quien está identificado en este celular, sin
+  // preguntar. Al editar uno existente sí se puede reasignar.
+  selectedRegistrador = cierre ? cierre.registradoPor : usuarioActual;
   selectedTurno = cierre ? (cierre.turno || null) : turnoActual();
 
   $("#input-importe-fact").value = cierre ? cierre.importe : "";
   if (cierre) {
-    $("#input-fecha-fact").value = fechaDeRegistro(cierre).toISOString().slice(0, 10);
+    $("#input-fecha-fact").value = fechaLocalISO(fechaDeRegistro(cierre));
   } else {
     setDefaultFechaFact();
   }
 
   $("#modal-fact-title").textContent = cierre ? "Editar cierre" : "Nuevo cierre";
   $("#btn-save-facturado").textContent = cierre ? "Guardar cambios" : "Guardar";
+  $("#campo-pagador-fact").classList.toggle("hidden", !cierre);
   $$("#pagador-options-fact .pagador-chip").forEach(c => c.classList.toggle("selected", c.textContent === selectedRegistrador));
   $$("#turno-options .pagador-chip").forEach(c => c.classList.toggle("selected", c.dataset.turno === selectedTurno));
   $("#modal-fact-error").classList.add("hidden");
@@ -1822,6 +1867,13 @@ function wireEvents() {
     selectedTurno = chip.dataset.turno;
     $$("#turno-options .pagador-chip").forEach(c => c.classList.remove("selected"));
     chip.classList.add("selected");
+    // Solo en un cierre NUEVO (no al editar uno existente): si se cambia
+    // a mano el turno, la fecha propuesta se reajusta sola (ver
+    // fechaParaTurno) — elegir "Noche" antes de las 22hs de hoy se
+    // refiere a la noche de AYER, no a una de esta noche que ni empezó.
+    if (!editingCierreId) {
+      $("#input-fecha-fact").value = fechaLocalISO(fechaParaTurno(selectedTurno));
+    }
   });
   $("#btn-cancel-add-facturado").addEventListener("click", closeModalFacturado);
   $("#btn-save-facturado").addEventListener("click", saveCierre);
