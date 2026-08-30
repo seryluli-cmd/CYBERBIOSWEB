@@ -82,6 +82,7 @@ let pins = {};             // { "Sergio": "1234", ... } — PIN fijo de 4 dígit
 let gastos = [];           // TODOS los gastos — [{id, importe, descripcion, categoria, pagadoPor, fecha, negocio}]
 let facturaciones = [];    // TODOS los cierres diarios — [{id, importe, registradoPor, fecha, negocio}]
 let ideas = [];            // Ideas de mejora — [{id, texto, estado, propuestoPor, creadoEn}]
+let reportes = [];         // Reportes de mantenimiento — [{id, texto, estado, propuestoPor, votos, creadoEn}]
 let negocioActual = null;  // "cyberbios" (siempre — acá hay un solo negocio)
 let seccionActual = null;  // "gastos" | "facturado" | "resumen"
 let selectedPagador = null;
@@ -95,16 +96,83 @@ const TURNO_LABEL = { "mañana": "Mañana", "tarde": "Tarde", "noche": "Noche" }
 // el turno saliente sigue siendo "el actual" hasta 40 min después de su
 // hora nominal de cierre (ej: a las 6:20 todavía propone "noche", no
 // "mañana", porque lo más probable es que estén cerrando la noche).
+//
+// EXCEPCIÓN: los domingos son distintos — solo 2 turnos de 12hs en vez de 3:
+// "Mañana" pasa a durar 06-18 (absorbe lo que sería "Tarde") y "Noche" pasa
+// a ser 18-06 del lunes. No existe "Tarde" los domingos. El sábado a la
+// noche sigue siendo el turno normal 22-06 (termina el domingo a la
+// mañana), eso no cambia.
 const TURNO_GRACIA_MIN = 40;
+function esDiaDomingo(date) {
+  return date.getDay() === 0;
+}
+
+// Etiqueta legible de un turno según el día calendario al que pertenece:
+// los domingos "mañana"/"noche" se muestran como "Domingo T1"/"Domingo T2"
+// (Turno 1 = 06-18, Turno 2 = 18-06) en vez de "Mañana"/"Noche", porque ese
+// día no son medios turnos de 8hs sino dos de 12hs — ver esDiaDomingo.
+function turnoLabelParaFecha(fecha, turno) {
+  if (esDiaDomingo(fecha)) {
+    if (turno === "mañana") return "Domingo T1";
+    if (turno === "noche") return "Domingo T2";
+  }
+  return TURNO_LABEL[turno] || turno;
+}
+
 function turnoActual() {
   const now = new Date();
   const mins = now.getHours() * 60 + now.getMinutes();
+  const finManana = esDiaDomingo(now) ? 18 : 14; // domingo: "Mañana" dura hasta las 18, no las 14
   // > (no >=): a los 40 min exactos todavía es el turno saliente cerrando,
   // recién al minuto 41 se considera empezado el turno siguiente.
-  if (mins > 6 * 60 + TURNO_GRACIA_MIN && mins <= 14 * 60 + TURNO_GRACIA_MIN) return "mañana";
-  if (mins > 14 * 60 + TURNO_GRACIA_MIN && mins <= 22 * 60 + TURNO_GRACIA_MIN) return "tarde";
+  if (mins > 6 * 60 + TURNO_GRACIA_MIN && mins <= finManana * 60 + TURNO_GRACIA_MIN) return "mañana";
+  if (!esDiaDomingo(now) && mins > 14 * 60 + TURNO_GRACIA_MIN && mins <= 22 * 60 + TURNO_GRACIA_MIN) return "tarde";
   return "noche";
 }
+
+// Momento exacto en que un turno de un día calendario dado queda vencido
+// (fin de su ventana + los mismos TURNO_GRACIA_MIN de arriba) — se usa para
+// saber si YA debería estar cargado o todavía puede estar en curso. Noche
+// cruza medianoche, por eso vence a las 06:xx del día SIGUIENTE al que
+// arrancó (mismo criterio que fechaParaTurno()) — esto no cambia los
+// domingos, porque tanto la noche normal como la del domingo terminan
+// igual a las 06:00 del día siguiente, lo único que cambia es a qué hora
+// arrancan.
+function turnoVencimiento(diaBase, turno) {
+  const d = new Date(diaBase);
+  d.setHours(0, 0, 0, 0);
+  if (turno === "mañana") {
+    d.setHours(esDiaDomingo(d) ? 18 : 14, TURNO_GRACIA_MIN, 0, 0);
+    return d;
+  }
+  if (turno === "tarde") { d.setHours(22, TURNO_GRACIA_MIN, 0, 0); return d; }
+  d.setDate(d.getDate() + 1);
+  d.setHours(6, TURNO_GRACIA_MIN, 0, 0);
+  return d;
+}
+
+// Los turnos de cada día del MES EN CURSO, de día 1 a hoy — el mes
+// completo, sin filtrar todavía por si cada turno ya venció. Domingo tiene
+// solo 2 (Mañana, Noche); el resto de los días tiene los 3 de siempre.
+// Quien arma la grilla (renderFacturado) decide caso por caso: con cierre
+// real, se muestra tal cual (haya vencido o no su ventana); sin cierre
+// real, recién se marca "faltante" si turnoVencimiento() ya pasó — así un
+// cierre cargado apenas termina el turno (antes de la gracia) aparece en su
+// lugar normal, en vez de quedar afuera de la grilla. No se extiende a
+// meses anteriores: ahí ya no tiene sentido reconstruir la grilla
+// retroactivamente.
+function turnosDelMesActual() {
+  const now = new Date();
+  const dia = new Date(now.getFullYear(), now.getMonth(), 1);
+  const slots = [];
+  while (dia <= now) {
+    const turnosDelDia = esDiaDomingo(dia) ? ["mañana", "noche"] : TURNOS;
+    turnosDelDia.forEach(turno => slots.push({ fecha: new Date(dia), turno }));
+    dia.setDate(dia.getDate() + 1);
+  }
+  return slots;
+}
+
 let resumenMesOffset = 0;  // 0 = mes actual, -1 = mes anterior, etc. (Resumen mensual)
 let pendingFirebaseConfig = null; // config guardada entre el paso 1 y 2 del setup inicial
 let usuarioActual = null;  // nombre con el que se identificó este celular (ver resumeSession)
@@ -219,10 +287,10 @@ function socioColorVar(index) {
   return `var(${SERIES_VARS[index % SERIES_VARS.length]})`;
 }
 
-// Color de identidad para cualquier "pagador": los 3 socios tienen su color
+// Color de identidad para cualquier "pagador": el dueño tiene su color
 // categórico propio; cualquier otra persona (colaboradores) usa un color
 // neutro, porque no participan del reparto y no deben leerse como una
-// cuarta "serie" en el balance.
+// "serie" propia en el balance.
 function payerColorVar(name) {
   const idx = socios.indexOf(name);
   return idx !== -1 ? socioColorVar(idx) : NEUTRAL_VAR;
@@ -310,6 +378,7 @@ function bootApp() {
   listenGastos();
   listenFacturacion();
   listenIdeas();
+  listenReportes();
   listenSocios();
   listenConnectivity();
   setDefaultFecha();
@@ -508,21 +577,22 @@ function selectNegocio(id) {
 }
 
 // ---------- Selector de sección (Gastos / Facturado) ----------
+// El título "CYBERBIOS" y la bajada quedaron fijos en el HTML (sin ícono,
+// para ganar espacio vertical y que entren todas las tarjetas) — ya no
+// dependen de biz.nombre/biz.emoji como el resto de las pantallas.
 function renderSeccionCards(biz) {
-  $("#seccion-negocio-nombre").textContent = biz.nombre;
-  $("#seccion-icon-badge").textContent = biz.emoji;
-  $("#seccion-icon-badge").style.background = biz.color;
 
   const SECCIONES = [
     { id: "gastos", emoji: "🧾", nombre: "Gastos", sub: "Cargar gastos y ver el balance entre socios" },
     { id: "facturado", emoji: "💰", nombre: "Cierre de Turno", sub: "Anotar efectivo y Digital" },
-    { id: "resumen", emoji: "📊", nombre: "Resumen mensual", sub: "Ver los totales de cada mes" },
-    { id: "ideas", emoji: "💡", nombre: "Caja de IDEAS", sub: "Aportar ideas para mejorar el negocio y el entorno laboral" }
+    { id: "resumen", emoji: "📊", nombre: "Resumen mensual", sub: "Ver los totales de cada mes", soloAdmin: true },
+    { id: "ideas", emoji: "💡", nombre: "Caja de IDEAS", sub: "Aportar ideas para mejorar el negocio y el entorno laboral" },
+    { id: "mantenimiento", emoji: "🔨", nombre: "Reportes de Mantenimiento", sub: "Reportar roturas o cosas para arreglar" }
   ];
 
   const wrap = $("#seccion-cards");
   wrap.innerHTML = "";
-  SECCIONES.forEach(s => {
+  SECCIONES.filter(s => !s.soloAdmin || esAdmin).forEach(s => {
     const card = document.createElement("div");
     card.className = "negocio-card";
     card.style.setProperty("--biz-color", biz.color);
@@ -555,6 +625,9 @@ function selectSeccion(id) {
   } else if (id === "ideas") {
     renderIdeas();
     showScreen("screen-ideas");
+  } else if (id === "mantenimiento") {
+    renderReportes();
+    showScreen("screen-mantenimiento");
   }
 }
 
@@ -642,6 +715,19 @@ function listenIdeas() {
   });
 }
 
+// Misma mecánica que Ideas (ver listenIdeas), colección aparte "reportes".
+function listenReportes() {
+  const q = fbSdk.query(fbSdk.collection(db, "reportes"), fbSdk.orderBy("creadoEn", "desc"));
+  fbSdk.onSnapshot(q, (snapshot) => {
+    reportes = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderReportes();
+    setSyncOffline(false);
+  }, (err) => {
+    console.error(err);
+    setSyncOffline(true);
+  });
+}
+
 function setSyncOffline(isOffline) {
   $$(".sync-dot").forEach(d => d.classList.toggle("offline", isOffline));
 }
@@ -714,6 +800,56 @@ function escapeHtml(str) {
 }
 
 // ---------- Render: Facturado ----------
+// Fila de un cierre YA cargado (id real en Firestore).
+function renderCierreItem(f) {
+  const fecha = fechaDeRegistro(f);
+  const adminBtns = esAdmin
+    ? `<button type="button" class="icon-btn cierre-edit-btn" data-id="${f.id}" aria-label="Editar cierre">✏️</button>
+       <button type="button" class="icon-btn danger cierre-delete-btn" data-id="${f.id}" aria-label="Borrar cierre">🗑️</button>`
+    : "";
+  const turnoLabel = turnoLabelParaFecha(fecha, f.turno);
+
+  // "creadoEn" es la hora REAL en que se guardó el cierre (a diferencia
+  // de "fecha", que es solo el día elegido, guardado siempre al
+  // mediodía — ver saveCierre). Los cierres de antes de este cambio no
+  // tienen "creadoEn", por eso el chequeo: en esos casos no se muestra
+  // ninguna hora en vez de mostrar una incorrecta.
+  const horaCarga = f.creadoEn && f.creadoEn.toDate
+    ? f.creadoEn.toDate().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })
+    : null;
+
+  const li = document.createElement("li");
+  li.className = "expense-item";
+  li.innerHTML = `
+    <div class="avatar" style="background:${payerColorVar(f.registradoPor)}">${socioInitial(f.registradoPor)}</div>
+    <div class="info">
+      <div class="desc">${turnoLabel ? escapeHtml(turnoLabel) + " — " : ""}${fecha.toLocaleDateString("es-AR", { weekday: "long", day: "2-digit", month: "short" })}</div>
+      <div class="meta">Cargado por ${escapeHtml(f.registradoPor || "?")}${horaCarga ? " a las " + horaCarga : ""}</div>
+    </div>
+    <div class="amount">${money(f.importe)}</div>
+    ${adminBtns}
+  `;
+  return li;
+}
+
+// Fila de un turno del mes en curso ya vencido (ver turnosDelMesActual)
+// que todavía no tiene cierre cargado. El botón "Cargar" abre el modal de
+// Nuevo cierre con esa fecha y turno ya preseleccionados — cualquiera puede
+// tocarlo (admin o empleado), igual que cualquiera puede cargar un cierre
+// nuevo con el +.
+function renderCierreFaltante(fecha, turno) {
+  const li = document.createElement("li");
+  li.className = "expense-item expense-item-faltante";
+  li.innerHTML = `
+    <div class="info">
+      <div class="desc falta-desc">⚠️ CAJA NO CARGADA</div>
+      <div class="meta">${escapeHtml(turnoLabelParaFecha(fecha, turno))} — ${fecha.toLocaleDateString("es-AR", { weekday: "long", day: "2-digit", month: "short" })}</div>
+    </div>
+    <button type="button" class="btn-secondary btn-cargar-faltante" data-fecha="${fechaLocalISO(fecha)}" data-turno="${turno}">Cargar</button>
+  `;
+  return li;
+}
+
 function renderFacturado() {
   const list = $("#facturado-list");
   const empty = $("#facturado-empty");
@@ -721,19 +857,13 @@ function renderFacturado() {
 
   const items = facturacionesDelNegocio();
 
-  if (!items.length) {
-    empty.classList.remove("hidden");
-  } else {
-    empty.classList.add("hidden");
-  }
-
   const now = new Date();
   let totalMes = 0;
   let totalHoy = 0;
   const turnosHoy = new Set();
 
   items.forEach(f => {
-    const fecha = f.fecha && f.fecha.toDate ? f.fecha.toDate() : new Date(f.fecha || Date.now());
+    const fecha = fechaDeRegistro(f);
     if (fecha.getMonth() === now.getMonth() && fecha.getFullYear() === now.getFullYear()) {
       totalMes += Number(f.importe) || 0;
     }
@@ -741,40 +871,56 @@ function renderFacturado() {
       totalHoy += Number(f.importe) || 0;
       if (TURNOS.includes(f.turno)) turnosHoy.add(f.turno);
     }
-
-    const adminBtns = esAdmin
-      ? `<button type="button" class="icon-btn cierre-edit-btn" data-id="${f.id}" aria-label="Editar cierre">✏️</button>
-         <button type="button" class="icon-btn danger cierre-delete-btn" data-id="${f.id}" aria-label="Borrar cierre">🗑️</button>`
-      : "";
-
-    const turnoLabel = TURNO_LABEL[f.turno] || "";
-
-    // "creadoEn" es la hora REAL en que se guardó el cierre (a diferencia
-    // de "fecha", que es solo el día elegido, guardado siempre al
-    // mediodía — ver saveCierre). Los cierres de antes de este cambio no
-    // tienen "creadoEn", por eso el chequeo: en esos casos no se muestra
-    // ninguna hora en vez de mostrar una incorrecta.
-    const horaCarga = f.creadoEn && f.creadoEn.toDate
-      ? f.creadoEn.toDate().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })
-      : null;
-
-    const li = document.createElement("li");
-    li.className = "expense-item";
-    li.innerHTML = `
-      <div class="avatar" style="background:${payerColorVar(f.registradoPor)}">${socioInitial(f.registradoPor)}</div>
-      <div class="info">
-        <div class="desc">${turnoLabel ? escapeHtml(turnoLabel) + " — " : ""}${fecha.toLocaleDateString("es-AR", { weekday: "long", day: "2-digit", month: "short" })}</div>
-        <div class="meta">Cargado por ${escapeHtml(f.registradoPor || "?")}${horaCarga ? " a las " + horaCarga : ""}</div>
-      </div>
-      <div class="amount">${money(f.importe)}</div>
-      ${adminBtns}
-    `;
-    list.appendChild(li);
   });
 
+  // Mapa "año-mes-día-turno" -> cierre real, para cruzarlo contra la
+  // grilla de turnos esperados del mes y saber cuáles faltan.
+  const porSlot = new Map();
+  items.forEach(f => {
+    const fecha = fechaDeRegistro(f);
+    porSlot.set(`${fecha.getFullYear()}-${fecha.getMonth()}-${fecha.getDate()}-${f.turno}`, f);
+  });
+
+  // Grilla del mes en curso: día 1 hasta hoy, más reciente primero, y
+  // dentro de cada día en orden Mañana → Tarde → Noche (como pasaron de
+  // verdad). Cada slot ya vencido sale como cierre real o como faltante.
+  const porDia = new Map(); // "año-mes-día" -> { fecha, turnos: [{turno, real}] }
+  turnosDelMesActual().forEach(({ fecha, turno }) => {
+    const diaKey = `${fecha.getFullYear()}-${fecha.getMonth()}-${fecha.getDate()}`;
+    if (!porDia.has(diaKey)) porDia.set(diaKey, { fecha, turnos: [] });
+    porDia.get(diaKey).turnos.push({ turno, real: porSlot.get(`${diaKey}-${turno}`) || null });
+  });
+  const diasDelMes = Array.from(porDia.values()).sort((a, b) => b.fecha - a.fecha);
+
+  const idsEnGrilla = new Set();
+  diasDelMes.forEach(dia => dia.turnos.forEach(t => { if (t.real) idsEnGrilla.add(t.real.id); }));
+
+  // El resto del historial (meses anteriores): la grilla de faltantes solo
+  // tiene sentido para el mes en curso, no se reconstruye para atrás.
+  const historialAnterior = items
+    .filter(f => !idsEnGrilla.has(f.id))
+    .slice()
+    .sort((a, b) => fechaDeRegistro(b) - fechaDeRegistro(a));
+
+  diasDelMes.forEach(dia => {
+    dia.turnos.forEach(({ turno, real }) => {
+      if (real) {
+        list.appendChild(renderCierreItem(real));
+      } else if (turnoVencimiento(dia.fecha, turno) <= now) {
+        list.appendChild(renderCierreFaltante(dia.fecha, turno));
+      }
+      // si no venció y no hay cierre real, todavía está en curso: no se muestra nada.
+    });
+  });
+  historialAnterior.forEach(f => list.appendChild(renderCierreItem(f)));
+
+  empty.classList.toggle("hidden", list.children.length > 0);
+
+  $("#facturado-total-mes-wrap").classList.toggle("hidden", !esAdmin);
   $("#facturado-total-mes").textContent = money(totalMes);
   $("#facturado-total-hoy").textContent = money(totalHoy);
-  $("#facturado-turnos-hoy").textContent = `${turnosHoy.size} de ${TURNOS.length} turnos cargados`;
+  const turnosEsperadosHoy = esDiaDomingo(now) ? 2 : TURNOS.length; // domingo: solo 2 turnos de 12hs
+  $("#facturado-turnos-hoy").textContent = `${turnosHoy.size} de ${turnosEsperadosHoy} turnos cargados`;
 }
 
 // ---------- Render: Ideas (checklist compartido) ----------
@@ -918,6 +1064,155 @@ async function saveIdea() {
   }
 }
 
+// ---------- Render: Reportes de Mantenimiento ----------
+// Misma estructura que Ideas (pendientes/resueltos, votos, borrar solo
+// admin), colección Firestore aparte ("reportes") — ver listenReportes.
+function renderReportes() {
+  const total = reportes.length;
+  const resueltos = reportes.filter(r => r.estado === "resuelto");
+  const pendientes = reportes
+    .filter(r => r.estado !== "resuelto")
+    .slice()
+    .sort((a, b) => votosDe(b).length - votosDe(a).length);
+
+  $("#reportes-empty").classList.toggle("hidden", total > 0);
+
+  $("#reportes-progreso-valor").textContent = `${resueltos.length} de ${total}`;
+  const pct = total ? Math.round((resueltos.length / total) * 100) : 0;
+  $("#reportes-progreso-bar").style.width = pct + "%";
+
+  $("#reportes-pendientes-empty").classList.toggle("hidden", pendientes.length > 0 || total === 0);
+  $("#reportes-resueltos-wrap").classList.toggle("hidden", resueltos.length === 0);
+
+  const pendientesEl = $("#reportes-pendientes-list");
+  pendientesEl.innerHTML = "";
+  pendientes.forEach(r => pendientesEl.appendChild(reporteCard(r)));
+
+  const resueltosEl = $("#reportes-resueltos-list");
+  resueltosEl.innerHTML = "";
+  resueltos.forEach(r => resueltosEl.appendChild(reporteCard(r)));
+}
+
+function reporteCard(reporte) {
+  const done = reporte.estado === "resuelto";
+  const fecha = fechaDeRegistro(reporte);
+  const votos = votosDe(reporte);
+  const voteado = usuarioActual && votos.includes(usuarioActual);
+  const card = document.createElement("div");
+  card.className = "idea-card";
+  card.dataset.id = reporte.id;
+  const deleteBtn = esAdmin
+    ? `<button type="button" class="icon-btn danger reporte-delete-btn" data-id="${reporte.id}" aria-label="Borrar reporte">🗑️</button>`
+    : "";
+  // "Resuelto por" solo se muestra si ya está marcado como resuelto y quedó
+  // guardado quién lo tildó (ver toggleReporteEstado).
+  const resueltoLinea = (done && reporte.resueltoPor)
+    ? `<div class="idea-meta">Resuelto por ${escapeHtml(reporte.resueltoPor)}</div>`
+    : "";
+  card.innerHTML = `
+    <div class="idea-check ${done ? "checked" : ""}">${done ? "✓" : ""}</div>
+    <div class="idea-info">
+      <div class="idea-texto ${done ? "done" : ""}">${escapeHtml(reporte.texto)}</div>
+      <div class="idea-meta">Reportado por ${escapeHtml(reporte.propuestoPor || "?")} · ${fecha.toLocaleDateString("es-AR", { day: "2-digit", month: "short" })}</div>
+      ${resueltoLinea}
+    </div>
+    <button type="button" class="idea-vote-btn ${voteado ? "voted" : ""}" data-id="${reporte.id}" aria-label="Me interesa este reporte">🔥 ${votos.length}</button>
+    ${deleteBtn}
+  `;
+  return card;
+}
+
+// Cualquiera puede votar/desvotar un reporte pendiente — igual criterio que
+// toggleVoto() en Ideas: sirve para priorizar qué arreglar primero.
+async function toggleVotoReporte(id) {
+  const reporte = reportes.find(r => r.id === id);
+  if (!reporte || !usuarioActual) return;
+  const yaVoto = votosDe(reporte).includes(usuarioActual);
+  try {
+    await fbSdk.updateDoc(fbSdk.doc(db, "reportes", id), {
+      votos: yaVoto ? fbSdk.arrayRemove(usuarioActual) : fbSdk.arrayUnion(usuarioActual)
+    });
+  } catch (e) {
+    console.error(e);
+    showToast("No se pudo actualizar. Revisá tu conexión.");
+  }
+}
+
+// Cualquiera puede marcar/desmarcar un reporte como resuelto — sin admin,
+// igual que toggleIdeaEstado() en Ideas.
+async function toggleReporteEstado(id) {
+  const reporte = reportes.find(r => r.id === id);
+  if (!reporte) return;
+  const marcandoResuelto = reporte.estado !== "resuelto";
+  try {
+    await fbSdk.updateDoc(fbSdk.doc(db, "reportes", id), {
+      estado: marcandoResuelto ? "resuelto" : "pendiente",
+      // Queda registrado quién lo solucionó (ver reporteCard). Si se
+      // reabre, se limpia — si se vuelve a resolver, se pisa con quien
+      // corresponda en ese momento.
+      resueltoPor: marcandoResuelto ? usuarioActual : fbSdk.deleteField()
+    });
+  } catch (e) {
+    console.error(e);
+    showToast("No se pudo actualizar. Revisá tu conexión.");
+  }
+}
+
+// Solo admin (esAdmin) — ver botón 🗑️ en reporteCard().
+async function deleteReporte(id) {
+  if (!confirm("¿Borrar este reporte?")) return;
+  try {
+    await fbSdk.deleteDoc(fbSdk.doc(db, "reportes", id));
+    showToast("Reporte borrado");
+  } catch (e) {
+    console.error(e);
+    showToast("No se pudo borrar. Revisá tu conexión.");
+  }
+}
+
+function openModalReporte() {
+  $("#input-reporte-texto").value = "";
+  $("#modal-reporte-error").classList.add("hidden");
+  $("#modal-add-reporte").classList.add("active");
+  setTimeout(() => $("#input-reporte-texto").focus(), 150);
+}
+
+function closeModalReporte() {
+  $("#modal-add-reporte").classList.remove("active");
+}
+
+async function saveReporte() {
+  const texto = $("#input-reporte-texto").value.trim();
+  const errEl = $("#modal-reporte-error");
+  if (!texto) {
+    errEl.textContent = "Escribí el reporte antes de guardar.";
+    errEl.classList.remove("hidden");
+    return;
+  }
+
+  const btn = $("#btn-save-reporte");
+  btn.disabled = true;
+  btn.textContent = "Guardando…";
+  try {
+    await fbSdk.addDoc(fbSdk.collection(db, "reportes"), {
+      texto,
+      estado: "pendiente",
+      votos: [],
+      propuestoPor: usuarioActual,
+      creadoEn: fbSdk.serverTimestamp()
+    });
+    closeModalReporte();
+    showToast("Reporte guardado ✅");
+  } catch (e) {
+    errEl.textContent = "No se pudo guardar. Revisá tu conexión.";
+    errEl.classList.remove("hidden");
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Guardar reporte";
+  }
+}
+
 // ---------- Render: Resumen mensual ----------
 // Muestra, para el mes elegido (navegable con ‹ ›), el total de Facturado
 // y el total de Gastos por separado — sin restar uno del otro. No borra ni
@@ -986,8 +1281,9 @@ function renderResumen() {
       const esHoy = dia.fecha.toDateString() === now.toDateString();
       const card = document.createElement("div");
       card.className = "socio-total-card";
-      const turnosHtml = TURNOS.map(t =>
-        `<span>${TURNO_LABEL[t]}: ${money(dia.turnos[t])}</span>`
+      const turnosDelDia = esDiaDomingo(dia.fecha) ? ["mañana", "noche"] : TURNOS; // domingo: sin "Tarde"
+      const turnosHtml = turnosDelDia.map(t =>
+        `<span>${turnoLabelParaFecha(dia.fecha, t)}: ${money(dia.turnos[t])}</span>`
       ).join("");
       card.innerHTML = `
         <div class="socio-total-row">
@@ -1412,7 +1708,7 @@ function resetFotoField() {
   selectedFotoBlob = null;
   $("#input-foto").value = "";
   $("#foto-preview-wrap").classList.add("hidden");
-  $("#btn-elegir-foto").classList.remove("hidden");
+  $("#foto-btns-row").classList.remove("hidden");
 }
 
 // Sin argumento: alta de un gasto nuevo. Con un gasto existente: edición
@@ -1427,7 +1723,7 @@ function openModal(gasto) {
 
   $("#input-importe").value = gasto ? gasto.importe : "";
   $("#input-descripcion").value = gasto ? (gasto.descripcion || "") : "";
-  $("#input-categoria").value = gasto ? (gasto.categoria || "Insumos") : "Insumos";
+  $("#input-categoria").value = gasto ? (gasto.categoria || "Kiosko") : "Kiosko";
   if (gasto) {
     $("#input-fecha").value = fechaLocalISO(fechaDeRegistro(gasto));
   } else {
@@ -1549,14 +1845,16 @@ async function deleteGasto(id) {
 
 // Fecha "natural" (de calendario) de un turno, para proponerla por
 // defecto. Noche es especial porque cruza la medianoche: si todavía no
-// dieron las 22hs de HOY, el turno Noche más reciente es el de ANOCHE
-// (arrancó ayer) — recién a partir de las 22hs pasa a ser el de esta
+// arrancó la Noche de HOY, el turno Noche más reciente es el de ANOCHE
+// (arrancó ayer) — recién a partir de esa hora pasa a ser el de esta
 // noche. Sin este ajuste, cerrar el turno Noche después de medianoche
 // quedaba fechado al día (y a veces al MES) siguiente, en vez del día en
-// que realmente arrancó.
+// que realmente arrancó. La Noche arranca a las 22hs, salvo los domingos
+// que arranca a las 18hs (ver esDiaDomingo / turnoActual).
 function fechaParaTurno(turno) {
   const hoy = new Date();
-  if (turno === "noche" && hoy.getHours() < 22) {
+  const inicioNoche = esDiaDomingo(hoy) ? 18 : 22;
+  if (turno === "noche" && hoy.getHours() < inicioNoche) {
     const ayer = new Date(hoy);
     ayer.setDate(ayer.getDate() - 1);
     return ayer;
@@ -1568,19 +1866,43 @@ function setDefaultFechaFact() {
   $("#input-fecha-fact").value = fechaLocalISO(fechaParaTurno(turnoActual()));
 }
 
-// Sin argumento: alta de un cierre nuevo. Con un cierre existente: edición
-// (solo admin, ver botón ✏️ en renderFacturado).
-function openModalFacturado(cierre) {
+// Oculta el chip "Tarde" cuando la fecha del cierre cae domingo (ver
+// esDiaDomingo / turnoActual): ese día no existe ese turno, son 2 de 12hs
+// en vez de 3. Si el turno ya elegido era "Tarde" y la fecha pasa a ser
+// domingo, se limpia la selección para forzar a elegir de nuevo entre
+// Mañana/Noche. Se llama al abrir el modal y cada vez que se cambia la
+// fecha a mano.
+function actualizarChipsTurnoPorFecha() {
+  const fechaStr = $("#input-fecha-fact").value;
+  const fecha = fechaStr ? new Date(fechaStr + "T12:00:00") : new Date();
+  const domingo = esDiaDomingo(fecha);
+  $('#turno-options .pagador-chip[data-turno="tarde"]').classList.toggle("hidden", domingo);
+  $('#turno-options .pagador-chip[data-turno="mañana"]').textContent = turnoLabelParaFecha(fecha, "mañana");
+  $('#turno-options .pagador-chip[data-turno="noche"]').textContent = turnoLabelParaFecha(fecha, "noche");
+  if (domingo && selectedTurno === "tarde") {
+    selectedTurno = null;
+  }
+  $$("#turno-options .pagador-chip").forEach(c => c.classList.toggle("selected", c.dataset.turno === selectedTurno));
+}
+
+// Sin argumento: alta de un cierre nuevo (usa el turno/fecha "actuales").
+// Con un cierre existente: edición (solo admin, ver botón ✏️ en
+// renderFacturado). Con "preset" ({fecha, turno}): alta de un cierre para
+// una caja marcada como faltante — ver botón "Cargar" en
+// renderCierreFaltante, cualquiera puede usarlo en cualquier momento.
+function openModalFacturado(cierre, preset) {
   editingCierreId = cierre ? cierre.id : null;
   // Mismo criterio que en Nuevo gasto (ver openModal): un cierre nuevo
   // queda a nombre de quien está identificado en este celular, sin
   // preguntar. Al editar uno existente sí se puede reasignar.
   selectedRegistrador = cierre ? cierre.registradoPor : usuarioActual;
-  selectedTurno = cierre ? (cierre.turno || null) : turnoActual();
+  selectedTurno = cierre ? (cierre.turno || null) : (preset ? preset.turno : turnoActual());
 
   $("#input-importe-fact").value = cierre ? cierre.importe : "";
   if (cierre) {
     $("#input-fecha-fact").value = fechaLocalISO(fechaDeRegistro(cierre));
+  } else if (preset) {
+    $("#input-fecha-fact").value = preset.fecha;
   } else {
     setDefaultFechaFact();
   }
@@ -1589,7 +1911,7 @@ function openModalFacturado(cierre) {
   $("#btn-save-facturado").textContent = cierre ? "Guardar cambios" : "Guardar";
   $("#campo-pagador-fact").classList.toggle("hidden", !cierre);
   $$("#pagador-options-fact .pagador-chip").forEach(c => c.classList.toggle("selected", c.textContent === selectedRegistrador));
-  $$("#turno-options .pagador-chip").forEach(c => c.classList.toggle("selected", c.dataset.turno === selectedTurno));
+  actualizarChipsTurnoPorFecha();
   $("#modal-fact-error").classList.add("hidden");
   $("#modal-add-facturado").classList.add("active");
   setTimeout(() => $("#input-importe-fact").focus(), 150);
@@ -1875,6 +2197,8 @@ function wireEvents() {
       $("#input-fecha-fact").value = fechaLocalISO(fechaParaTurno(selectedTurno));
     }
   });
+  // Si cambian la fecha a mano, "Tarde" se oculta/muestra según si cayó domingo.
+  $("#input-fecha-fact").addEventListener("change", actualizarChipsTurnoPorFecha);
   $("#btn-cancel-add-facturado").addEventListener("click", closeModalFacturado);
   $("#btn-save-facturado").addEventListener("click", saveCierre);
   $("#modal-add-facturado").addEventListener("click", (e) => {
@@ -1907,10 +2231,43 @@ function wireEvents() {
   };
   $("#ideas-pendientes-list").addEventListener("click", handleIdeaListClick);
   $("#ideas-concretadas-list").addEventListener("click", handleIdeaListClick);
+
+  // Reportes de Mantenimiento — mismo wiring que Ideas, ver handleIdeaListClick.
+  $("#btn-back-from-reportes").addEventListener("click", () => {
+    if (seccionActual === "mantenimiento") volverASeccion();
+    else showScreen("screen-negocio");
+  });
+  $("#fab-add-reporte").addEventListener("click", () => openModalReporte());
+  $("#btn-cancel-add-reporte").addEventListener("click", closeModalReporte);
+  $("#btn-save-reporte").addEventListener("click", saveReporte);
+  $("#modal-add-reporte").addEventListener("click", (e) => {
+    if (e.target.id === "modal-add-reporte") closeModalReporte();
+  });
+  const handleReporteListClick = (e) => {
+    const delBtn = e.target.closest(".reporte-delete-btn");
+    if (delBtn) { deleteReporte(delBtn.dataset.id); return; }
+    const voteBtn = e.target.closest(".idea-vote-btn");
+    if (voteBtn) { toggleVotoReporte(voteBtn.dataset.id); return; }
+    const card = e.target.closest(".idea-card");
+    if (card) toggleReporteEstado(card.dataset.id);
+  };
+  $("#reportes-pendientes-list").addEventListener("click", handleReporteListClick);
+  $("#reportes-resueltos-list").addEventListener("click", handleReporteListClick);
+
   $$(".tabbtn").forEach(b => b.addEventListener("click", () => switchTab(b.dataset.tab)));
 
-  // Foto de factura (modal Nuevo gasto)
-  $("#btn-elegir-foto").addEventListener("click", () => $("#input-foto").click());
+  // Foto de factura (modal Nuevo gasto): "Tomar foto" fuerza la cámara
+  // trasera con el atributo capture; "Elegir de galería" lo saca para que
+  // el navegador ofrezca el selector de archivos/fotos normal. Ambos
+  // botones disparan el mismo <input type="file">.
+  $("#btn-tomar-foto").addEventListener("click", () => {
+    $("#input-foto").setAttribute("capture", "environment");
+    $("#input-foto").click();
+  });
+  $("#btn-elegir-foto").addEventListener("click", () => {
+    $("#input-foto").removeAttribute("capture");
+    $("#input-foto").click();
+  });
   $("#input-foto").addEventListener("change", async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -1918,7 +2275,7 @@ function wireEvents() {
       selectedFotoBlob = await compressImage(file);
       $("#foto-preview-img").src = URL.createObjectURL(selectedFotoBlob);
       $("#foto-preview-wrap").classList.remove("hidden");
-      $("#btn-elegir-foto").classList.add("hidden");
+      $("#foto-btns-row").classList.add("hidden");
     } catch (err) {
       console.error(err);
       showToast("No se pudo procesar la foto.");
@@ -1949,7 +2306,9 @@ function wireEvents() {
       return;
     }
     const delBtn = e.target.closest(".cierre-delete-btn");
-    if (delBtn) deleteCierre(delBtn.dataset.id);
+    if (delBtn) { deleteCierre(delBtn.dataset.id); return; }
+    const cargarBtn = e.target.closest(".btn-cargar-faltante");
+    if (cargarBtn) openModalFacturado(null, { fecha: cargarBtn.dataset.fecha, turno: cargarBtn.dataset.turno });
   });
 
   // Pantalla "Fotos guardadas"

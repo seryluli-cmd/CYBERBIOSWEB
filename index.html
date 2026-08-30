@@ -168,13 +168,50 @@
     <button id="fab-add-idea" class="fab" aria-label="Agregar idea">+</button>
   </div>
 
+  <!-- ===== PANTALLA: REPORTES DE MANTENIMIENTO ===== -->
+  <div id="screen-mantenimiento" class="screen">
+
+    <header class="topbar">
+      <button id="btn-back-from-reportes" class="topbar-title" aria-label="Volver">
+        <span class="topbar-back-arrow">←</span>
+        <span class="logo-badge small">🔨</span>
+        <span>Reportes de Mantenimiento</span>
+      </button>
+    </header>
+
+    <section class="tab active">
+      <div class="stat-hero">
+        <div class="stat-hero-label">Reportes resueltos</div>
+        <div class="stat-hero-value" id="reportes-progreso-valor">0 de 0</div>
+        <div class="bar-track" style="margin-top:10px;"><div class="bar-fill" id="reportes-progreso-bar" style="width:0%;background:var(--good)"></div></div>
+      </div>
+
+      <div id="reportes-empty" class="empty-state hidden">
+        <p>Todavía no hay reportes cargados.</p>
+        <p class="muted small">Tocá el botón + para anotar el primero.</p>
+      </div>
+
+      <div id="reportes-pendientes-wrap">
+        <h3 class="section-title">Pendientes</h3>
+        <div id="reportes-pendientes-list" class="ideas-list"></div>
+        <p id="reportes-pendientes-empty" class="muted small hidden">No hay reportes pendientes — ¡todo arreglado! 🎉</p>
+      </div>
+
+      <div id="reportes-resueltos-wrap">
+        <h3 class="section-title">Resueltos</h3>
+        <div id="reportes-resueltos-list" class="ideas-list"></div>
+      </div>
+    </section>
+
+    <button id="fab-add-reporte" class="fab" aria-label="Agregar reporte">+</button>
+  </div>
+
   <!-- ===== PANTALLA: ELEGIR SECCIÓN (Gastos / Facturado) ===== -->
   <div id="screen-seccion" class="screen">
     <div class="negocio-wrap">
       <button id="btn-back-to-negocio" class="back-link" aria-label="Volver">← Cambiar negocio</button>
-      <div class="logo-badge" id="seccion-icon-badge">$</div>
-      <h1 id="seccion-negocio-nombre">Negocio</h1>
-      <p class="muted">¿Qué querés ver?</p>
+      <h1 id="seccion-negocio-nombre">CYBERBIOS</h1>
+      <p class="muted">Haz que tu presencia se note.</p>
       <div id="seccion-cards" class="negocio-cards"></div>
     </div>
   </div>
@@ -318,7 +355,7 @@
         <div class="stat-hero-sub" id="facturado-turnos-hoy">0 de 3 turnos cargados</div>
       </div>
 
-      <div class="stat-hero">
+      <div class="stat-hero" id="facturado-total-mes-wrap">
         <div class="stat-hero-label">Facturado este mes</div>
         <div class="stat-hero-value" id="facturado-total-mes">$0</div>
       </div>
@@ -416,12 +453,13 @@
       <div class="field">
         <label for="input-categoria">Categoría</label>
         <select id="input-categoria">
-          <option value="Insumos">Insumos</option>
-          <option value="Alquiler">Alquiler</option>
+          <option value="Kiosko">Kiosko</option>
+          <option value="Bebidas">Bebidas</option>
+          <option value="Panchos">Panchos</option>
+          <option value="Art Limpieza">Art Limpieza</option>
           <option value="Servicios">Servicios</option>
-          <option value="Sueldos">Sueldos</option>
-          <option value="Marketing">Marketing</option>
-          <option value="Impuestos">Impuestos</option>
+          <option value="Alquiler">Alquiler</option>
+          <option value="Mantenimiento Gral">Mantenimiento Gral</option>
           <option value="Otros">Otros</option>
         </select>
       </div>
@@ -438,8 +476,11 @@
 
       <div class="field">
         <label>Foto de la factura <span class="muted small">(opcional)</span></label>
-        <input type="file" id="input-foto" accept="image/*" capture="environment" class="hidden">
-        <button type="button" id="btn-elegir-foto" class="btn-secondary">📷 Agregar foto</button>
+        <input type="file" id="input-foto" accept="image/*" class="hidden">
+        <div id="foto-btns-row" class="foto-btns-row">
+          <button type="button" id="btn-tomar-foto" class="btn-secondary">📷 Tomar foto</button>
+          <button type="button" id="btn-elegir-foto" class="btn-secondary">🖼️ Elegir de galería</button>
+        </div>
         <div id="foto-preview-wrap" class="foto-preview-wrap hidden">
           <img id="foto-preview-img" class="foto-preview-img" alt="Vista previa de la factura">
           <button type="button" id="btn-quitar-foto" class="foto-remove-btn" aria-label="Quitar foto">×</button>
@@ -511,6 +552,26 @@
       <div class="modal-actions">
         <button id="btn-cancel-add-idea" class="btn-secondary">Cancelar</button>
         <button id="btn-save-idea" class="btn-primary">Guardar idea</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: NUEVO REPORTE DE MANTENIMIENTO ===== -->
+  <div id="modal-add-reporte" class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <h2>Nuevo reporte</h2>
+
+      <div class="field">
+        <label for="input-reporte-texto">¿Qué hay que arreglar?</label>
+        <textarea id="input-reporte-texto" rows="3" maxlength="200" placeholder="Ej: Se rompió la manija de la puerta del depósito"></textarea>
+      </div>
+
+      <p id="modal-reporte-error" class="error-text hidden"></p>
+
+      <div class="modal-actions">
+        <button id="btn-cancel-add-reporte" class="btn-secondary">Cancelar</button>
+        <button id="btn-save-reporte" class="btn-primary">Guardar reporte</button>
       </div>
     </div>
   </div>
