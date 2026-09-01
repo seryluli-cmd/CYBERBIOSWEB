@@ -1303,9 +1303,15 @@ function renderResumen() {
 
   const totalGastos = gastosMes.reduce((sum, g) => sum + (Number(g.importe) || 0), 0);
   const totalFact = factMes.reduce((sum, f) => sum + (Number(f.importe) || 0), 0);
+  // Cierres cargados antes de que existiera el desglose Efectivo/Digital no
+  // tienen esos campos (quedan null) — no suman acá, solo entran en el total.
+  const totalEfectivo = factMes.reduce((sum, f) => sum + (Number(f.efectivo) || 0), 0);
+  const totalDigital = factMes.reduce((sum, f) => sum + (Number(f.digital) || 0), 0);
 
   $("#resumen-total-facturado").textContent = money(totalFact);
   $("#resumen-cant-facturado").textContent = factMes.length === 1 ? "1 cierre cargado" : `${factMes.length} cierres cargados`;
+  $("#resumen-efectivo-facturado").textContent = money(totalEfectivo);
+  $("#resumen-digital-facturado").textContent = money(totalDigital);
   $("#resumen-total-gastos").textContent = money(totalGastos);
   $("#resumen-cant-gastos").textContent = gastosMes.length === 1 ? "1 gasto cargado" : `${gastosMes.length} gastos cargados`;
 
@@ -1739,7 +1745,7 @@ function exportGastosCSV() {
 }
 
 function exportFacturacionCSV() {
-  const rows = [["Fecha", "Importe", "Registrado por"]];
+  const rows = [["Fecha", "Caja total", "Efectivo", "Digital", "Registrado por"]];
   facturacionesDelNegocio()
     .slice()
     .sort((a, b) => fechaDeRegistro(a) - fechaDeRegistro(b))
@@ -1747,6 +1753,8 @@ function exportFacturacionCSV() {
       rows.push([
         fechaDeRegistro(f).toLocaleDateString("es-AR"),
         Number(f.importe) || 0,
+        f.efectivo != null ? Number(f.efectivo) : "",
+        f.digital != null ? Number(f.digital) : "",
         f.registradoPor || ""
       ]);
     });
@@ -1760,6 +1768,17 @@ function setDefaultFecha() {
 }
 
 // ---------- Modal: agregar gasto ----------
+// Si Storage no responde (bucket no activado, reglas, red que ni siquiera
+// llega a fallar), uploadBytes/getDownloadURL pueden quedar la promesa
+// colgada para siempre — el botón "Subiendo foto…" no volvía nunca y no
+// había forma de reintentar. Este timeout garantiza que siempre termine.
+function conTimeout(promise, ms, mensajeTimeout) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(mensajeTimeout)), ms))
+  ]);
+}
+
 function resetFotoField() {
   selectedFotoBlob = null;
   $("#input-foto").value = "";
@@ -1830,12 +1849,26 @@ async function saveGasto() {
   btn.textContent = selectedFotoBlob ? "Subiendo foto…" : "Guardando…";
 
   try {
-    let fotoUrl = null, fotoPath = null;
+    let fotoUrl = null, fotoPath = null, fotoFallo = false;
     if (selectedFotoBlob) {
-      fotoPath = `recibos/${negocioActual}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
-      const storageRef = fbSdk.ref(storage, fotoPath);
-      await fbSdk.uploadBytes(storageRef, selectedFotoBlob, { contentType: "image/jpeg" });
-      fotoUrl = await fbSdk.getDownloadURL(storageRef);
+      // Si la subida falla o tarda demasiado, no bloqueamos el gasto entero
+      // por eso — se guarda igual sin la foto y se avisa con el toast de
+      // abajo. Mejor un gasto sin foto que un gasto perdido.
+      try {
+        fotoPath = `recibos/${negocioActual}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
+        const storageRef = fbSdk.ref(storage, fotoPath);
+        const TIMEOUT_MSG = "La subida de la foto tardó demasiado.";
+        await conTimeout(
+          fbSdk.uploadBytes(storageRef, selectedFotoBlob, { contentType: "image/jpeg" }),
+          25000,
+          TIMEOUT_MSG
+        );
+        fotoUrl = await conTimeout(fbSdk.getDownloadURL(storageRef), 15000, TIMEOUT_MSG);
+      } catch (fotoErr) {
+        console.error("No se pudo subir la foto, se guarda el gasto sin ella:", fotoErr);
+        fotoFallo = true;
+        fotoPath = null;
+      }
       btn.textContent = "Guardando…";
     }
 
@@ -1862,11 +1895,13 @@ async function saveGasto() {
       await fbSdk.addDoc(fbSdk.collection(db, "gastos"), gastoData);
     }
     closeModal();
-    showToast(isEdit ? "Gasto actualizado ✅" : "Gasto guardado ✅");
+    if (fotoFallo) {
+      showToast(isEdit ? "Gasto actualizado, pero no se pudo subir la foto ⚠️" : "Gasto guardado sin la foto (no se pudo subir) ⚠️");
+    } else {
+      showToast(isEdit ? "Gasto actualizado ✅" : "Gasto guardado ✅");
+    }
   } catch (e) {
-    errEl.textContent = selectedFotoBlob
-      ? "No se pudo subir la foto. Revisá tu conexión (o que Cloud Storage esté activado en Firebase)."
-      : "No se pudo guardar. Revisá tu conexión.";
+    errEl.textContent = "No se pudo guardar. Revisá tu conexión.";
     errEl.classList.remove("hidden");
     console.error(e);
   } finally {
@@ -1922,6 +1957,35 @@ function setDefaultFechaFact() {
   $("#input-fecha-fact").value = fechaLocalISO(fechaParaTurno(turnoActual()));
 }
 
+// Caja total = Efectivo + Digital. Los 3 campos del modal de cierre se
+// autocompletan entre sí: apenas hay exactamente 2 de los 3 con un valor
+// cargado, el que falta se calcula solo (se dispara con cada "input" de
+// cualquiera de los 3, ver listeners más abajo). Si ya están los 3
+// completos no se toca nada — solo asiste a completar el que falta, no
+// fuerza que sigan sumando si el usuario corrige uno a mano.
+function redondear2(n) {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+function autocompletarCierre() {
+  const totalEl = $("#input-total-fact");
+  const efectivoEl = $("#input-efectivo-fact");
+  const digitalEl = $("#input-digital-fact");
+  const total = totalEl.value.trim();
+  const efectivo = efectivoEl.value.trim();
+  const digital = digitalEl.value.trim();
+  const vacios = [total, efectivo, digital].filter(v => v === "").length;
+  if (vacios !== 1) return;
+
+  if (total === "") {
+    totalEl.value = redondear2((parseFloat(efectivo) || 0) + (parseFloat(digital) || 0));
+  } else if (efectivo === "") {
+    efectivoEl.value = redondear2((parseFloat(total) || 0) - (parseFloat(digital) || 0));
+  } else if (digital === "") {
+    digitalEl.value = redondear2((parseFloat(total) || 0) - (parseFloat(efectivo) || 0));
+  }
+}
+
 // Oculta el chip "Tarde" cuando la fecha del cierre cae domingo (ver
 // esDiaDomingo / turnoActual): ese día no existe ese turno, son 2 de 12hs
 // en vez de 3. Si el turno ya elegido era "Tarde" y la fecha pasa a ser
@@ -1954,7 +2018,9 @@ function openModalFacturado(cierre, preset) {
   selectedRegistrador = cierre ? cierre.registradoPor : usuarioActual;
   selectedTurno = cierre ? (cierre.turno || null) : (preset ? preset.turno : turnoActual());
 
-  $("#input-importe-fact").value = cierre ? cierre.importe : "";
+  $("#input-total-fact").value = cierre && cierre.importe != null ? cierre.importe : "";
+  $("#input-efectivo-fact").value = cierre && cierre.efectivo != null ? cierre.efectivo : "";
+  $("#input-digital-fact").value = cierre && cierre.digital != null ? cierre.digital : "";
   if (cierre) {
     $("#input-fecha-fact").value = fechaLocalISO(fechaDeRegistro(cierre));
   } else if (preset) {
@@ -1970,7 +2036,7 @@ function openModalFacturado(cierre, preset) {
   actualizarChipsTurnoPorFecha();
   $("#modal-fact-error").classList.add("hidden");
   $("#modal-add-facturado").classList.add("active");
-  setTimeout(() => $("#input-importe-fact").focus(), 150);
+  setTimeout(() => $("#input-total-fact").focus(), 150);
 }
 
 function closeModalFacturado() {
@@ -1979,12 +2045,16 @@ function closeModalFacturado() {
 }
 
 async function saveCierre() {
-  const importe = parseFloat($("#input-importe-fact").value);
+  const importe = parseFloat($("#input-total-fact").value);
+  const efectivoStr = $("#input-efectivo-fact").value.trim();
+  const digitalStr = $("#input-digital-fact").value.trim();
+  const efectivo = efectivoStr === "" ? null : parseFloat(efectivoStr);
+  const digital = digitalStr === "" ? null : parseFloat(digitalStr);
   const fechaStr = $("#input-fecha-fact").value;
   const errEl = $("#modal-fact-error");
 
   if (!importe || importe <= 0) {
-    errEl.textContent = "Ingresá un importe válido.";
+    errEl.textContent = "Ingresá la caja total (o efectivo + digital para que se calcule sola).";
     errEl.classList.remove("hidden");
     return;
   }
@@ -2007,6 +2077,8 @@ async function saveCierre() {
   try {
     const data = {
       importe,
+      efectivo,
+      digital,
       turno: selectedTurno,
       registradoPor: selectedRegistrador,
       negocio: negocioActual,
@@ -2273,6 +2345,11 @@ function wireEvents() {
   });
   // Si cambian la fecha a mano, "Tarde" se oculta/muestra según si cayó domingo.
   $("#input-fecha-fact").addEventListener("change", actualizarChipsTurnoPorFecha);
+  // Caja total / Efectivo / Digital se autocompletan entre sí (ver
+  // autocompletarCierre): con 2 de los 3 cargados, calcula el que falta.
+  ["#input-total-fact", "#input-efectivo-fact", "#input-digital-fact"].forEach(sel => {
+    $(sel).addEventListener("input", autocompletarCierre);
+  });
   $("#btn-cancel-add-facturado").addEventListener("click", closeModalFacturado);
   $("#btn-save-facturado").addEventListener("click", saveCierre);
   $("#modal-add-facturado").addEventListener("click", (e) => {
