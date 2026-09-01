@@ -315,12 +315,28 @@ input:focus, select:focus, textarea:focus {
   cursor: pointer;
 }
 .topbar-title:active { background: var(--gridline); }
+/* Insignia circular chica en vez de un "←" suelto gigante (antes
+   font-size: 42px, mucho más grande que el texto del título de al
+   lado). 20px es apenas más que la línea de texto — necesario para
+   que siga siendo fácil de tocar en el celular, sin dominar visualmente
+   el título como pasaba antes. */
 .topbar-back-arrow {
-  font-size: 42px; /* 14px + 200% */
-  font-weight: 700;
-  color: var(--text-secondary);
-  line-height: 1;
-  margin-right: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--series-1);
+  color: #fff;
+}
+/* Los SVG inline traen un hueco invisible abajo por default (se tratan
+   como texto, con espacio reservado para el "descender" de una letra
+   como la "g") — display:block lo saca, así el ícono queda centrado de
+   verdad adentro del círculo en vez de corrido para arriba. */
+.topbar-back-arrow svg {
+  display: block;
 }
 
 .sync-dot {

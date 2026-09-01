@@ -135,7 +135,7 @@
 
     <header class="topbar">
       <button id="btn-back-from-ideas" class="topbar-title" aria-label="Volver">
-        <span class="topbar-back-arrow">←</span>
+        <span class="topbar-back-arrow"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 6 9 12 15 18"></polyline></svg></span>
         <span class="logo-badge small">💡</span>
         <span>Caja de IDEAS</span>
       </button>
@@ -173,7 +173,7 @@
 
     <header class="topbar">
       <button id="btn-back-from-reportes" class="topbar-title" aria-label="Volver">
-        <span class="topbar-back-arrow">←</span>
+        <span class="topbar-back-arrow"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 6 9 12 15 18"></polyline></svg></span>
         <span class="logo-badge small">🔨</span>
         <span>Reportes de Mantenimiento</span>
       </button>
@@ -221,7 +221,7 @@
 
     <header class="topbar">
       <button id="btn-switch-negocio" class="topbar-title" aria-label="Volver a la sección">
-        <span class="topbar-back-arrow">←</span>
+        <span class="topbar-back-arrow"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 6 9 12 15 18"></polyline></svg></span>
         <span class="logo-badge small" id="negocio-icon-badge">$</span>
         <span id="negocio-titulo">Gastos</span>
       </button>
@@ -230,8 +230,14 @@
 
     <!-- ---- TAB: GASTOS ---- -->
     <section id="tab-gastos" class="tab active">
+      <div class="month-nav">
+        <button id="btn-gastos-mes-anterior" class="month-nav-btn" aria-label="Mes anterior">‹</button>
+        <div class="month-nav-label" id="gastos-mes-label">Mes</div>
+        <button id="btn-gastos-mes-siguiente" class="month-nav-btn" aria-label="Mes siguiente">›</button>
+      </div>
+
       <div class="stat-hero">
-        <div class="stat-hero-label">Total gastado (este mes)</div>
+        <div class="stat-hero-label">Total gastado</div>
         <div class="stat-hero-value" id="total-mes">$0</div>
       </div>
 
@@ -341,7 +347,7 @@
 
     <header class="topbar">
       <button id="btn-back-to-seccion-fact" class="topbar-title" aria-label="Volver a la sección">
-        <span class="topbar-back-arrow">←</span>
+        <span class="topbar-back-arrow"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 6 9 12 15 18"></polyline></svg></span>
         <span class="logo-badge small" id="facturado-icon-badge">$</span>
         <span id="facturado-titulo">Cierre de Turno</span>
       </button>
@@ -376,7 +382,7 @@
 
     <header class="topbar">
       <button id="btn-back-to-seccion-resumen" class="topbar-title" aria-label="Volver a la sección">
-        <span class="topbar-back-arrow">←</span>
+        <span class="topbar-back-arrow"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 6 9 12 15 18"></polyline></svg></span>
         <span class="logo-badge small" id="resumen-icon-badge">$</span>
         <span id="resumen-titulo">Resumen</span>
       </button>
@@ -417,7 +423,7 @@
 
     <header class="topbar">
       <button id="btn-back-to-ajustes" class="topbar-title" aria-label="Volver a Ajustes">
-        <span class="topbar-back-arrow">←</span>
+        <span class="topbar-back-arrow"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 6 9 12 15 18"></polyline></svg></span>
         <span id="fotos-titulo">Fotos guardadas</span>
       </button>
     </header>
