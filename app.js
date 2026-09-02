@@ -1331,8 +1331,11 @@ function renderResumen() {
 
   $("#resumen-total-facturado").textContent = money(totalFact);
   $("#resumen-cant-facturado").textContent = factMes.length === 1 ? "1 cierre cargado" : `${factMes.length} cierres cargados`;
-  $("#resumen-efectivo-facturado").textContent = money(totalEfectivo);
-  $("#resumen-digital-facturado").textContent = money(totalDigital);
+  $("#resumen-total-efectivo").textContent = money(totalEfectivo);
+  $("#resumen-total-digital").textContent = money(totalDigital);
+  const maxEfectDigital = Math.max(1, totalEfectivo, totalDigital);
+  $("#resumen-bar-efectivo").style.width = Math.round((totalEfectivo / maxEfectDigital) * 100) + "%";
+  $("#resumen-bar-digital").style.width = Math.round((totalDigital / maxEfectDigital) * 100) + "%";
   $("#resumen-total-gastos").textContent = money(totalGastos);
   $("#resumen-cant-gastos").textContent = gastosMes.length === 1 ? "1 gasto cargado" : `${gastosMes.length} gastos cargados`;
 
@@ -1354,6 +1357,9 @@ function renderResumen() {
   });
   $("#resumen-gastos-efectivo").textContent = money(totalGastosEfectivo);
   $("#resumen-gastos-digital").textContent = money(totalGastosDigital);
+  const maxGastosEfectDigital = Math.max(1, totalGastosEfectivo, totalGastosDigital);
+  $("#resumen-gastos-bar-efectivo").style.width = Math.round((totalGastosEfectivo / maxGastosEfectDigital) * 100) + "%";
+  $("#resumen-gastos-bar-digital").style.width = Math.round((totalGastosDigital / maxGastosEfectDigital) * 100) + "%";
 
   // Agrupa los cierres del mes por día calendario, y dentro de cada día
   // por turno — para ver de un vistazo cuánto se trabajó cada día y cómo
