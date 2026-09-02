@@ -402,22 +402,22 @@
       </div>
 
       <div class="stat-hero">
-        <div class="stat-hero-label">💰 Total trabajado</div>
+        <div class="stat-hero-label stat-hero-label-lg">💰 Total trabajado</div>
         <div class="stat-hero-value" id="resumen-total-facturado">$0</div>
         <div class="stat-hero-sub" id="resumen-cant-facturado">0 cierres cargados</div>
         <div class="resumen-turnos-row stat-hero-breakdown">
-          <span>💵 Efectivo: <strong id="resumen-efectivo-facturado">$0</strong></span>
-          <span>💳 Digital: <strong id="resumen-digital-facturado">$0</strong></span>
+          <span>💵 Efectivo Facturado: <strong id="resumen-efectivo-facturado">$0</strong></span>
+          <span>💳 Digital Facturado: <strong id="resumen-digital-facturado">$0</strong></span>
         </div>
       </div>
 
       <div class="stat-hero">
-        <div class="stat-hero-label">🧾 Gastos</div>
+        <div class="stat-hero-label stat-hero-label-lg">🧾 Gastos</div>
         <div class="stat-hero-value" id="resumen-total-gastos">$0</div>
         <div class="stat-hero-sub" id="resumen-cant-gastos">0 gastos cargados</div>
         <div class="resumen-turnos-row stat-hero-breakdown">
-          <span>💵 Efectivo: <strong id="resumen-gastos-efectivo">$0</strong></span>
-          <span>💳 Digital: <strong id="resumen-gastos-digital">$0</strong></span>
+          <span>💵 Efectivo Gastado: <strong id="resumen-gastos-efectivo">$0</strong></span>
+          <span>💳 Digital Gastado: <strong id="resumen-gastos-digital">$0</strong></span>
         </div>
       </div>
 
@@ -480,8 +480,13 @@
           <option value="Servicios">Servicios</option>
           <option value="Alquiler">Alquiler</option>
           <option value="Mantenimiento Gral">Mantenimiento Gral</option>
+          <option value="Sueldos">Sueldos</option>
           <option value="Otros">Otros</option>
         </select>
+      </div>
+
+      <div class="field">
+        <label class="checkbox-label"><input type="checkbox" id="input-falta-abonar"> ⚠️ Falta abonar</label>
       </div>
 
       <div class="field" id="campo-pagador">
