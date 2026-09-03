@@ -38,8 +38,10 @@ async function loadFirebaseSdk() {
     orderBy: fsMod.orderBy,
     doc: fsMod.doc,
     getDoc: fsMod.getDoc,
+    getDocs: fsMod.getDocs,
     setDoc: fsMod.setDoc,
     updateDoc: fsMod.updateDoc,
+    increment: fsMod.increment,
     deleteField: fsMod.deleteField,
     arrayUnion: fsMod.arrayUnion,
     arrayRemove: fsMod.arrayRemove,
@@ -425,10 +427,51 @@ function setUsuarioActual(nombre) {
   usuarioActual = nombre;
   esAdmin = admins.includes(nombre);
   localStorage.setItem(LS_USER_KEY, nombre);
+  registrarLogin(nombre);
   renderAjustesSocios();
   renderGastos();
   renderFacturado();
   renderIdeas();
+}
+
+// Historial de logeos: cuenta cuántas veces se identificó cada persona
+// (tanto al tipear el PIN de nuevo como cuando el celular ya la recordaba
+// — setUsuarioActual() es el único lugar por el que pasa cualquiera de
+// las dos formas). Solo Sergio puede VER el resultado (ver
+// renderAjustesSocios) pero se cuenta para todos por igual. Un doc por
+// persona con un contador atómico, en vez de un doc por logeo, para no
+// acumular una colección sin límite ni tener que leer miles de docs para
+// mostrar un simple conteo.
+async function registrarLogin(nombre) {
+  try {
+    await fbSdk.setDoc(fbSdk.doc(db, "logins", nombre), { veces: fbSdk.increment(1) }, { merge: true });
+  } catch (e) {
+    console.error("No se pudo registrar el logeo:", e);
+  }
+}
+
+async function cargarHistorialLogins() {
+  const wrap = $("#historial-logins-list");
+  const empty = $("#historial-logins-empty");
+  wrap.innerHTML = "";
+  try {
+    const snap = await fbSdk.getDocs(fbSdk.collection(db, "logins"));
+    const filas = [];
+    snap.forEach(d => filas.push({ nombre: d.id, veces: d.data().veces || 0 }));
+    filas.sort((a, b) => b.veces - a.veces);
+    empty.classList.toggle("hidden", filas.length > 0);
+    filas.forEach(f => {
+      const row = document.createElement("div");
+      row.className = "ajustes-socio-row";
+      row.innerHTML = `<span class="socio-dot" style="background:${NEUTRAL_VAR}"></span> ${escapeHtml(f.nombre)}
+        <span class="muted small" style="margin-left:auto;">${f.veces} ${f.veces === 1 ? "vez" : "veces"}</span>`;
+      wrap.appendChild(row);
+    });
+  } catch (e) {
+    console.error("No se pudo cargar el historial de logeos:", e);
+    empty.textContent = "No se pudo cargar. Revisá tu conexión.";
+    empty.classList.remove("hidden");
+  }
 }
 
 function cambiarUsuario() {
@@ -1707,6 +1750,14 @@ function renderAjustesSocios() {
   }
   $("#admin-add-colaborador-wrap").classList.toggle("hidden", !esAdmin);
 
+  // Historial de logeos: escondido para todos salvo Sergio (ver
+  // registrarLogin/cargarHistorialLogins) — acá esAdmin ya equivale a
+  // "es Sergio" (dueño único) pero se chequea el nombre igual para que
+  // no dependa de que nadie más se agregue como admin más adelante.
+  const esSergio = usuarioActual === "Sergio";
+  $("#ajustes-historial-logins-card").classList.toggle("hidden", !esSergio);
+  if (esSergio) cargarHistorialLogins();
+
   $("#ajustes-conn-status").textContent = auth && auth.currentUser
     ? "✅ Conectado — los gastos se sincronizan entre todos los celulares."
     : "⚠️ No conectado.";
@@ -2182,16 +2233,35 @@ function closeModalFacturado() {
 }
 
 async function saveCierre() {
-  const importe = parseFloat($("#input-total-fact").value);
+  const totalStr = $("#input-total-fact").value.trim();
   const efectivoStr = $("#input-efectivo-fact").value.trim();
   const digitalStr = $("#input-digital-fact").value.trim();
+  const importe = parseFloat(totalStr);
   const efectivo = efectivoStr === "" ? null : parseFloat(efectivoStr);
   const digital = digitalStr === "" ? null : parseFloat(digitalStr);
   const fechaStr = $("#input-fecha-fact").value;
   const errEl = $("#modal-fact-error");
 
+  // Los 3 campos se autocompletan entre sí (ver autocompletarCierre) pero
+  // igual hay que exigir que terminen los 3 con un valor antes de guardar
+  // (ej. si se borra uno a mano después de que se completó solo).
+  if (totalStr === "") {
+    errEl.textContent = "Falta llenar el Total.";
+    errEl.classList.remove("hidden");
+    return;
+  }
+  if (efectivoStr === "") {
+    errEl.textContent = "Falta llenar el Efectivo.";
+    errEl.classList.remove("hidden");
+    return;
+  }
+  if (digitalStr === "") {
+    errEl.textContent = "Falta llenar el Digital.";
+    errEl.classList.remove("hidden");
+    return;
+  }
   if (!importe || importe <= 0) {
-    errEl.textContent = "Ingresá la caja total (o efectivo + digital para que se calcule sola).";
+    errEl.textContent = "Ingresá un total válido (mayor a 0).";
     errEl.classList.remove("hidden");
     return;
   }
@@ -2457,6 +2527,7 @@ function wireEvents() {
   });
   $("#btn-export-gastos").addEventListener("click", exportGastosCSV);
   $("#btn-export-facturacion").addEventListener("click", exportFacturacionCSV);
+  $("#btn-refrescar-historial-logins").addEventListener("click", cargarHistorialLogins);
   $("#btn-reset").addEventListener("click", resetLocalConfig);
   $("#btn-switch-negocio").addEventListener("click", volverASeccion);
   $("#btn-back-to-seccion-fact").addEventListener("click", volverASeccion);
