@@ -202,6 +202,46 @@ function money(n) {
   return "$" + v.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
+// Inputs de plata (Importe, Efectivo, Digital, Cierre): se muestran con
+// punto de miles mientras se tipea (ej. "100.000"), igual que money() ya
+// las muestra una vez guardadas — así se nota de un vistazo si faltó o
+// sobró un cero. Por eso estos campos son type="text" en el HTML en vez
+// de type="number" (que no puede mostrar el punto de miles: lo
+// interpretaría como separador decimal). parseMoneyInput()/
+// formatMoneyValue() traducen entre el string que ve el usuario (miles con
+// ".", decimal con "," — estilo es-AR, igual que money()) y el number con
+// el que trabaja el resto del código.
+function parseMoneyInput(str) {
+  if (str == null) return NaN;
+  const limpio = String(str).trim().replace(/\./g, "").replace(",", ".");
+  return limpio === "" ? NaN : parseFloat(limpio);
+}
+
+function formatMoneyValue(n) {
+  return Number.isFinite(n) ? n.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : "";
+}
+
+// Filtra lo que se tipea (solo dígitos y una coma decimal) y agrega los
+// puntos de miles a medida que se escribe — con "input" (cada tecla), a
+// propósito distinto del cálculo cruzado entre campos (autocompletarCierre
+// / calcularCampoMixtoFaltante), que va con "change" para no calcular a
+// medio tipear. Acá sí tiene que ser instantáneo: si no, el punto de
+// miles no se vería mientras se escribe.
+function formatMoneyInputMientrasTipea(e) {
+  const el = e.target;
+  const cursorAlFinal = el.selectionEnd === el.value.length;
+  const comaIdx = el.value.indexOf(",");
+  let enteros = (comaIdx === -1 ? el.value : el.value.slice(0, comaIdx)).replace(/\D/g, "");
+  const decimales = comaIdx === -1 ? "" : "," + el.value.slice(comaIdx + 1).replace(/\D/g, "").slice(0, 2);
+  enteros = enteros.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  el.value = enteros + decimales;
+  if (cursorAlFinal) el.setSelectionRange(el.value.length, el.value.length);
+}
+
+function wireMoneyInput(id) {
+  $(id).addEventListener("input", formatMoneyInputMientrasTipea);
+}
+
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 function mesLabel(date) {
   return `${MESES[date.getMonth()]} ${date.getFullYear()}`;
@@ -1898,10 +1938,11 @@ function selectFormaPago(forma) {
   if (forma !== "mixto") mixtoUltimoEditado = null;
 }
 
-// Cálculo cruzado del desglose Mixto: al tipear en Efectivo o Digital, el
-// otro se completa solo para que sume el Importe (mismo criterio que el
-// desglose Total/Efectivo/Digital de Facturado en GESTIONEGOCIOS, pero acá
-// el "total" ya es el campo Importe que está siempre visible arriba).
+// Cálculo cruzado del desglose Mixto: al salir de Efectivo o Digital (o de
+// Importe), el otro se completa solo para que sume el Importe (mismo
+// criterio que el desglose Total/Efectivo/Digital de Facturado, pero acá
+// el "total" ya es el campo Importe que está siempre visible arriba). Los
+// listeners usan "change", no "input" — ver wireEvents().
 function registrarEdicionMixto(campo) {
   mixtoUltimoEditado = campo;
   calcularCampoMixtoFaltante();
@@ -1909,16 +1950,16 @@ function registrarEdicionMixto(campo) {
 
 function calcularCampoMixtoFaltante() {
   if (!mixtoUltimoEditado) return;
-  const importe = parseFloat($("#input-importe").value);
+  const importe = parseMoneyInput($("#input-importe").value);
   if (!Number.isFinite(importe)) return;
   if (mixtoUltimoEditado === "efectivo") {
-    const efectivo = parseFloat($("#input-mixto-efectivo").value);
+    const efectivo = parseMoneyInput($("#input-mixto-efectivo").value);
     if (!Number.isFinite(efectivo)) return;
-    $("#input-mixto-digital").value = Math.round((importe - efectivo) * 100) / 100;
+    $("#input-mixto-digital").value = formatMoneyValue(redondear2(importe - efectivo));
   } else {
-    const digital = parseFloat($("#input-mixto-digital").value);
+    const digital = parseMoneyInput($("#input-mixto-digital").value);
     if (!Number.isFinite(digital)) return;
-    $("#input-mixto-efectivo").value = Math.round((importe - digital) * 100) / 100;
+    $("#input-mixto-efectivo").value = formatMoneyValue(redondear2(importe - digital));
   }
 }
 
@@ -1930,7 +1971,7 @@ function openModal(gasto) {
   // reasignarlo (ver #campo-pagador más abajo).
   selectedPagador = gasto ? gasto.pagadoPor : usuarioActual;
 
-  $("#input-importe").value = gasto ? gasto.importe : "";
+  $("#input-importe").value = gasto ? formatMoneyValue(gasto.importe) : "";
   $("#input-descripcion").value = gasto ? (gasto.descripcion || "") : "";
   $("#input-categoria").value = gasto ? (gasto.categoria || "Kiosko") : "Kiosko";
   $("#input-falta-abonar").checked = gasto ? !!gasto.faltaAbonar : false;
@@ -1940,8 +1981,8 @@ function openModal(gasto) {
   // campo guardado — se muestran como Efectivo por default (no se puede
   // inventar cómo se pagaron los viejos).
   mixtoUltimoEditado = null;
-  $("#input-mixto-efectivo").value = gasto && gasto.montoEfectivo != null ? gasto.montoEfectivo : "";
-  $("#input-mixto-digital").value = gasto && gasto.montoDigital != null ? gasto.montoDigital : "";
+  $("#input-mixto-efectivo").value = gasto && gasto.montoEfectivo != null ? formatMoneyValue(gasto.montoEfectivo) : "";
+  $("#input-mixto-digital").value = gasto && gasto.montoDigital != null ? formatMoneyValue(gasto.montoDigital) : "";
   selectFormaPago(gasto ? (gasto.formaPago || "efectivo") : "efectivo");
 
   if (gasto) {
@@ -1966,7 +2007,7 @@ function closeModal() {
 }
 
 async function saveGasto() {
-  const importe = parseFloat($("#input-importe").value);
+  const importe = parseMoneyInput($("#input-importe").value);
   const descripcion = $("#input-descripcion").value.trim();
   const categoria = $("#input-categoria").value;
   const nota = $("#input-nota").value.trim();
@@ -1991,8 +2032,8 @@ async function saveGasto() {
 
   let montoEfectivo = null, montoDigital = null;
   if (selectedFormaPago === "mixto") {
-    montoEfectivo = parseFloat($("#input-mixto-efectivo").value);
-    montoDigital = parseFloat($("#input-mixto-digital").value);
+    montoEfectivo = parseMoneyInput($("#input-mixto-efectivo").value);
+    montoDigital = parseMoneyInput($("#input-mixto-digital").value);
     if (!Number.isFinite(montoEfectivo) || !Number.isFinite(montoDigital) || montoEfectivo < 0 || montoDigital < 0) {
       errEl.textContent = "Completá el desglose Efectivo y Digital.";
       errEl.classList.remove("hidden");
@@ -2147,10 +2188,11 @@ function setDefaultFechaFact() {
 
 // Caja total = Efectivo + Digital. Los 3 campos del modal de cierre se
 // autocompletan entre sí: apenas hay exactamente 2 de los 3 con un valor
-// cargado, el que falta se calcula solo (se dispara con cada "input" de
-// cualquiera de los 3, ver listeners más abajo). Si ya están los 3
-// completos no se toca nada — solo asiste a completar el que falta, no
-// fuerza que sigan sumando si el usuario corrige uno a mano.
+// cargado, el que falta se calcula solo (se dispara al salir de cualquiera
+// de los 3 con "change", ver listeners más abajo — no con "input", para no
+// calcular a medio tipear). Si ya están los 3 completos no se toca nada —
+// solo asiste a completar el que falta, no fuerza que sigan sumando si el
+// usuario corrige uno a mano.
 function redondear2(n) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
@@ -2166,11 +2208,11 @@ function autocompletarCierre() {
   if (vacios !== 1) return;
 
   if (total === "") {
-    totalEl.value = redondear2((parseFloat(efectivo) || 0) + (parseFloat(digital) || 0));
+    totalEl.value = formatMoneyValue(redondear2((parseMoneyInput(efectivo) || 0) + (parseMoneyInput(digital) || 0)));
   } else if (efectivo === "") {
-    efectivoEl.value = redondear2((parseFloat(total) || 0) - (parseFloat(digital) || 0));
+    efectivoEl.value = formatMoneyValue(redondear2((parseMoneyInput(total) || 0) - (parseMoneyInput(digital) || 0)));
   } else if (digital === "") {
-    digitalEl.value = redondear2((parseFloat(total) || 0) - (parseFloat(efectivo) || 0));
+    digitalEl.value = formatMoneyValue(redondear2((parseMoneyInput(total) || 0) - (parseMoneyInput(efectivo) || 0)));
   }
 }
 
@@ -2206,9 +2248,9 @@ function openModalFacturado(cierre, preset) {
   selectedRegistrador = cierre ? cierre.registradoPor : usuarioActual;
   selectedTurno = cierre ? (cierre.turno || null) : (preset ? preset.turno : turnoActual());
 
-  $("#input-total-fact").value = cierre && cierre.importe != null ? cierre.importe : "";
-  $("#input-efectivo-fact").value = cierre && cierre.efectivo != null ? cierre.efectivo : "";
-  $("#input-digital-fact").value = cierre && cierre.digital != null ? cierre.digital : "";
+  $("#input-total-fact").value = cierre && cierre.importe != null ? formatMoneyValue(cierre.importe) : "";
+  $("#input-efectivo-fact").value = cierre && cierre.efectivo != null ? formatMoneyValue(cierre.efectivo) : "";
+  $("#input-digital-fact").value = cierre && cierre.digital != null ? formatMoneyValue(cierre.digital) : "";
   if (cierre) {
     $("#input-fecha-fact").value = fechaLocalISO(fechaDeRegistro(cierre));
   } else if (preset) {
@@ -2236,9 +2278,9 @@ async function saveCierre() {
   const totalStr = $("#input-total-fact").value.trim();
   const efectivoStr = $("#input-efectivo-fact").value.trim();
   const digitalStr = $("#input-digital-fact").value.trim();
-  const importe = parseFloat(totalStr);
-  const efectivo = efectivoStr === "" ? null : parseFloat(efectivoStr);
-  const digital = digitalStr === "" ? null : parseFloat(digitalStr);
+  const importe = parseMoneyInput(totalStr);
+  const efectivo = efectivoStr === "" ? null : parseMoneyInput(efectivoStr);
+  const digital = digitalStr === "" ? null : parseMoneyInput(digitalStr);
   const fechaStr = $("#input-fecha-fact").value;
   const errEl = $("#modal-fact-error");
 
@@ -2504,9 +2546,17 @@ function wireEvents() {
   $$("#forma-pago-options .pagador-chip").forEach(chip => {
     chip.addEventListener("click", () => selectFormaPago(chip.dataset.forma));
   });
-  $("#input-mixto-efectivo").addEventListener("input", () => registrarEdicionMixto("efectivo"));
-  $("#input-mixto-digital").addEventListener("input", () => registrarEdicionMixto("digital"));
-  $("#input-importe").addEventListener("input", calcularCampoMixtoFaltante);
+  // Punto de miles mientras se tipea en los 6 campos de plata de la app
+  // (ver formatMoneyInputMientrasTipea) — Gastos (Importe, Mixto) y Cierre
+  // de Turno (Total, Efectivo, Digital).
+  ["#input-importe", "#input-mixto-efectivo", "#input-mixto-digital",
+   "#input-total-fact", "#input-efectivo-fact", "#input-digital-fact"].forEach(wireMoneyInput);
+  // "change" (al salir del campo), no "input" (cada tecla) — mismo motivo
+  // que el cálculo cruzado de Facturado: si no, un solo dígito ya dispara
+  // el cálculo con el valor a medio tipear (ver calcularCampoMixtoFaltante).
+  $("#input-mixto-efectivo").addEventListener("change", () => registrarEdicionMixto("efectivo"));
+  $("#input-mixto-digital").addEventListener("change", () => registrarEdicionMixto("digital"));
+  $("#input-importe").addEventListener("change", calcularCampoMixtoFaltante);
   $("#btn-gastos-mes-anterior").addEventListener("click", () => {
     gastosMesOffset--;
     renderGastos();
@@ -2561,8 +2611,12 @@ function wireEvents() {
   $("#input-fecha-fact").addEventListener("change", actualizarChipsTurnoPorFecha);
   // Caja total / Efectivo / Digital se autocompletan entre sí (ver
   // autocompletarCierre): con 2 de los 3 cargados, calcula el que falta.
+  // Se dispara con "change" (al salir del campo), no "input" (cada tecla)
+  // — si no, apenas se tipea el primer dígito de un campo ya calcula el
+  // tercero con ese valor a medio terminar (ej. tipear "50000" en Efectivo
+  // calculaba Digital ni bien se apretaba el "5").
   ["#input-total-fact", "#input-efectivo-fact", "#input-digital-fact"].forEach(sel => {
-    $(sel).addEventListener("input", autocompletarCierre);
+    $(sel).addEventListener("change", autocompletarCierre);
   });
   $("#btn-cancel-add-facturado").addEventListener("click", closeModalFacturado);
   $("#btn-save-facturado").addEventListener("click", saveCierre);
