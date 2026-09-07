@@ -1489,6 +1489,15 @@ function renderResumen() {
   $("#resumen-total-gastos").textContent = money(totalGastos);
   $("#resumen-cant-gastos").textContent = gastosMes.length === 1 ? "1 gasto cargado" : `${gastosMes.length} gastos cargados`;
 
+  // Rentabilidad = Total Facturado - Gastos del mes. En rojo si da negativo
+  // (se gastó más de lo que entró), en verde si da positivo o cero. money()
+  // siempre recibe un valor positivo — el signo se antepone a mano para que
+  // quede "-$1.234" y no el "$-1.234" que da toLocaleString con negativos.
+  const rentabilidad = totalFact - totalGastos;
+  const rentabilidadEl = $("#resumen-rentabilidad");
+  rentabilidadEl.textContent = (rentabilidad < 0 ? "-" : "") + money(Math.abs(rentabilidad));
+  rentabilidadEl.style.color = rentabilidad < 0 ? "var(--critical)" : "var(--good)";
+
   // Mismo desglose Efectivo/Digital que Facturado, pero para Gastos —
   // usa el campo "formaPago" de cada gasto (ver openModal/saveGasto).
   // Gastos sin ese campo (cargados antes de que existiera) cuentan como

@@ -361,7 +361,7 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 18px;
 }
 .stat-hero-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; }
-/* Resumen mensual: "Total trabajado" y "Gastos" (texto e ícono, que al
+/* Resumen mensual: "Total Facturado" y "Gastos" (texto e ícono, que al
    ser emoji escala junto con el font-size). Reducido 30% desde 26px. */
 .stat-hero-label-lg { font-size: 18.2px; margin-bottom: 10px; }
 .stat-hero-value { font-size: 32px; font-weight: 700; font-variant-numeric: proportional-nums; }
