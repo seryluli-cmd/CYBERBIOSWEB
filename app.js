@@ -2820,6 +2820,10 @@ function wireEvents() {
   $("#btn-export-facturacion").addEventListener("click", exportFacturacionCSV);
   $("#btn-refrescar-historial-logins").addEventListener("click", cargarHistorialLogins);
   $("#btn-reset").addEventListener("click", resetLocalConfig);
+  $("#btn-ajustes-atajo").addEventListener("click", () => {
+    switchTab("ajustes");
+    showScreen("screen-app");
+  });
   $("#btn-switch-negocio").addEventListener("click", volverASeccion);
   $("#btn-back-to-seccion-fact").addEventListener("click", volverASeccion);
   $("#btn-back-to-negocio").addEventListener("click", () => showScreen("screen-negocio"));
