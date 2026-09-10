@@ -63,6 +63,37 @@
   }
 }
 
+/* Fuerza el tema oscuro sin importar la preferencia del sistema — lo pone
+   aplicarTema() en app.js cuando la persona elige "Oscuro" a mano en
+   Ajustes (en vez de dejarlo en "Automático"). Mismos valores que el
+   bloque de arriba, pero sin depender de prefers-color-scheme. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-1:      #1a1a19;
+  --page-plane:     #0d0d0d;
+  --text-primary:   #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted:     #898781;
+  --gridline:       #2c2c2a;
+  --baseline:       #383835;
+  --border:         rgba(255,255,255,0.10);
+
+  --series-1: #9d7cf5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+
+  --colab-1: #4a90e2;
+  --colab-2: #e75ba8;
+  --colab-3: #dab445;
+  --colab-4: #29b6cf;
+  --colab-5: #b0793f;
+  --colab-6: #a3b52e;
+
+  --good: #0ca30c;
+  --critical: #e66767;
+  --critical-bg: #3a2323;
+}
+
 html, body {
   height: 100%;
   margin: 0;

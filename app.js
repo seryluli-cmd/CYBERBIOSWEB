@@ -74,6 +74,7 @@ const LS_CONFIG_KEY = "gn_firebaseConfig";
 const LS_SOCIOS_CACHE = "gn_socios_cache";
 const LS_COLAB_CACHE = "gn_colaboradores_cache";
 const LS_USER_KEY = "gn_current_user"; // quién está identificado en este celular
+const LS_THEME_KEY = "gn_theme"; // "auto" (o ausente) | "light" | "dark"
 const SERIES_VARS = ["--series-1", "--series-2", "--series-3"];
 const COLAB_VARS = ["--colab-1", "--colab-2", "--colab-3", "--colab-4", "--colab-5", "--colab-6"];
 const NEUTRAL_VAR = "var(--text-muted)";
@@ -326,6 +327,26 @@ function showToast(msg) {
 function showScreen(id) {
   $$(".screen").forEach(s => s.classList.remove("active"));
   $("#" + id).classList.add("active");
+}
+
+// Punto único de verdad para el tema (claro/oscuro/automático) elegido en
+// Ajustes. "auto" saca el atributo y deja que mande prefers-color-scheme
+// (ver styles.css); "light"/"dark" lo fuerza. El mismo valor ya se aplica
+// antes de esto, en un <script> al principio de index.html, para que no
+// haya un flash del tema equivocado mientras carga este módulo.
+function aplicarTema(pref) {
+  if (pref === "light" || pref === "dark") {
+    document.documentElement.setAttribute("data-theme", pref);
+    localStorage.setItem(LS_THEME_KEY, pref);
+  } else {
+    pref = "auto";
+    document.documentElement.removeAttribute("data-theme");
+    localStorage.removeItem(LS_THEME_KEY);
+  }
+  const wrap = $("#tema-options");
+  if (wrap) {
+    wrap.querySelectorAll(".pagador-chip").forEach(c => c.classList.toggle("selected", c.dataset.tema === pref));
+  }
 }
 
 function parseFirebaseConfig(raw) {
@@ -2813,6 +2834,11 @@ function wireEvents() {
     renderResumen();
   });
   $("#fab-add-facturado").addEventListener("click", () => openModalFacturado());
+  $("#tema-options").addEventListener("click", (e) => {
+    const chip = e.target.closest(".pagador-chip");
+    if (!chip) return;
+    aplicarTema(chip.dataset.tema);
+  });
   $("#turno-options").addEventListener("click", (e) => {
     const chip = e.target.closest(".pagador-chip");
     if (!chip) return;
@@ -3049,6 +3075,7 @@ async function attemptReconnect() {
 }
 
 async function start() {
+  aplicarTema(localStorage.getItem(LS_THEME_KEY));
   wireEvents();
   $("#btn-retry-boot").addEventListener("click", attemptReconnect);
   $("#btn-reconfigure-boot").addEventListener("click", () => {

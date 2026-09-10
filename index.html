@@ -17,6 +17,19 @@
 <link rel="icon" href="icons/icon-192.png">
 
 <link rel="stylesheet" href="styles.css">
+<script>
+  // Aplica el tema guardado ANTES de pintar la pantalla, para que no se
+  // vea un flash del tema equivocado al abrir la app. aplicarTema() en
+  // app.js hace lo mismo más tarde (incluye el mismo dato para el
+  // selector de Ajustes) — este bloque es solo para que ya esté puesto
+  // desde el primer instante, antes de que cargue el módulo.
+  try {
+    var gnTema = localStorage.getItem("gn_theme");
+    if (gnTema === "light" || gnTema === "dark") {
+      document.documentElement.setAttribute("data-theme", gnTema);
+    }
+  } catch (_) {}
+</script>
 </head>
 <body>
 
@@ -270,6 +283,15 @@
 
     <!-- ---- TAB: AJUSTES ---- -->
     <section id="tab-ajustes" class="tab">
+      <div class="card">
+        <h2>Apariencia</h2>
+        <div id="tema-options" class="pagador-options">
+          <div class="pagador-chip" data-tema="auto">Auto</div>
+          <div class="pagador-chip" data-tema="light">Claro</div>
+          <div class="pagador-chip" data-tema="dark">Oscuro</div>
+        </div>
+      </div>
+
       <div class="card">
         <h2>Tu usuario</h2>
         <p id="ajustes-usuario-actual" class="muted small">—</p>
