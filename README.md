@@ -178,6 +178,14 @@ python -m http.server 5177
 
 ## Configurar Firebase (proyecto propio, separado del de Recreo & Pablo)
 
+La config de Firebase de este negocio (proyecto `controlinterno-659c4`) ya
+viene incluida en el código (`DEFAULT_FIREBASE_CONFIG` en app.js) — por eso
+al abrir la app por primera vez en un dispositivo nuevo no hay que pegar
+nada, `attemptReconnect()` la usa sola y entra directo. La pantalla de
+pegar `firebaseConfig` (`screen-setup`) sigue existiendo como respaldo
+manual (botón "Configurar de nuevo" si falla la conexión) y para el caso de
+arrancar un negocio distinto desde cero:
+
 1. Crear proyecto gratis en `console.firebase.google.com` (con **otra
    cuenta o el mismo Google, pero un proyecto nuevo** — nunca reusar el
    proyecto `controlnegocios` de la otra sociedad).
@@ -191,8 +199,9 @@ python -m http.server 5177
 
 ## Estado del repo
 
-Es un repositorio git y tiene deploy activo en Netlify (plan personal/pago,
-que además habilita password protection del sitio y Netlify Identity si
-algún día hace falta login real en vez del PIN). El flujo de deploy hoy es
-manual: se genera un `.zip` de la carpeta (sin `.git`) y se sube a mano al
-hosting — no hay CI/CD conectado al repo todavía.
+Repositorio git con remoto en GitHub (`seryluli-cmd/CYBERBIOSWEB`). El
+deploy es automático: Netlify (plan personal/pago, que además habilita
+password protection del sitio y Netlify Identity si algún día hace falta
+login real en vez del PIN) está conectado a este repo y publica solo con
+cada push a `master` — no hace falta generar ni subir ningún `.zip` a
+mano.

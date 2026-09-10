@@ -57,6 +57,19 @@ async function loadFirebaseSdk() {
 }
 
 // ---------- Estado ----------
+// Config de Firebase de este negocio (proyecto "controlinterno-659c4",
+// separado del de Recreo & Pablo — ver README) — es la misma para todos
+// los dispositivos, así que viene incluida de una vez y nadie tiene que
+// pegarla a mano en el primer inicio (ver attemptReconnect). Si algún día
+// hace falta cambiar de proyecto, alcanza con reemplazar este objeto.
+const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCnTWkffUqTQDLg2pvy_SU79rX7uZ4rlqM",
+  authDomain: "controlinterno-659c4.firebaseapp.com",
+  projectId: "controlinterno-659c4",
+  storageBucket: "controlinterno-659c4.firebasestorage.app",
+  messagingSenderId: "484802084661",
+  appId: "1:484802084661:web:a19ffee0621eaa14bb167c"
+};
 const LS_CONFIG_KEY = "gn_firebaseConfig";
 const LS_SOCIOS_CACHE = "gn_socios_cache";
 const LS_COLAB_CACHE = "gn_colaboradores_cache";
@@ -2836,7 +2849,7 @@ async function attemptReconnect() {
   const cachedSocios = localStorage.getItem(LS_SOCIOS_CACHE);
   const cachedColab = localStorage.getItem(LS_COLAB_CACHE);
 
-  if (!savedConfig) {
+  if (!savedConfig && !DEFAULT_FIREBASE_CONFIG.apiKey) {
     showScreen("screen-setup");
     return;
   }
@@ -2854,8 +2867,9 @@ async function attemptReconnect() {
   showScreen("screen-loading");
 
   try {
-    const config = JSON.parse(savedConfig);
+    const config = savedConfig ? JSON.parse(savedConfig) : DEFAULT_FIREBASE_CONFIG;
     await connectAndBoot(config, socios, colaboradores);
+    if (!savedConfig) localStorage.setItem(LS_CONFIG_KEY, JSON.stringify(config));
   } catch (e) {
     console.error("Error reconectando:", e);
     $("#loading-msg").textContent = e.message && e.message.includes("conectar")
