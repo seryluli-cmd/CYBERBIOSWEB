@@ -11,9 +11,20 @@
   --baseline:       #c3c2b7;
   --border:         rgba(11,11,11,0.10);
 
-  --series-1: #7c3aed; /* violeta — color de marca de CyberBIOS */
-  --series-2: #eb6834; /* naranja — para colaboradores/segunda serie si hiciera falta */
+  --series-1: #7c3aed; /* violeta — color de marca de CyberBIOS, y color del dueño */
+  --series-2: #eb6834; /* naranja — segunda serie si hiciera falta */
   --series-3: #1baf7a; /* aqua — idem */
+
+  /* Colores de colaboradores (empleados, no dueño): uno por persona, a
+     propósito en tonos que no aparecen en --series-* ni en --good/
+     --critical, para que no se confundan entre sí ni con el dueño ni con
+     un aviso de la app. Ver colaboradorColorVar() en app.js. */
+  --colab-1: #2a78d6; /* azul */
+  --colab-2: #d6368f; /* rosa */
+  --colab-3: #c9971c; /* dorado */
+  --colab-4: #1f8fa3; /* turquesa */
+  --colab-5: #8a5a2b; /* marrón */
+  --colab-6: #8a8c1f; /* oliva */
 
   --good: #0ca30c;
   --critical: #d03b3b;
@@ -38,6 +49,13 @@
     --series-1: #9d7cf5;
     --series-2: #d95926;
     --series-3: #199e70;
+
+    --colab-1: #4a90e2;
+    --colab-2: #e75ba8;
+    --colab-3: #dab445;
+    --colab-4: #29b6cf;
+    --colab-5: #b0793f;
+    --colab-6: #a3b52e;
 
     --good: #0ca30c;
     --critical: #e66767;

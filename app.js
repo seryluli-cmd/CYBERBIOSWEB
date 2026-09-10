@@ -75,6 +75,7 @@ const LS_SOCIOS_CACHE = "gn_socios_cache";
 const LS_COLAB_CACHE = "gn_colaboradores_cache";
 const LS_USER_KEY = "gn_current_user"; // quién está identificado en este celular
 const SERIES_VARS = ["--series-1", "--series-2", "--series-3"];
+const COLAB_VARS = ["--colab-1", "--colab-2", "--colab-3", "--colab-4", "--colab-5", "--colab-6"];
 const NEUTRAL_VAR = "var(--text-muted)";
 
 // Un solo negocio acá (a diferencia del proyecto de Recreo & Pablo, del que
@@ -353,13 +354,22 @@ function socioColorVar(index) {
   return `var(${SERIES_VARS[index % SERIES_VARS.length]})`;
 }
 
+function colaboradorColorVar(index) {
+  return `var(${COLAB_VARS[index % COLAB_VARS.length]})`;
+}
+
 // Color de identidad para cualquier "pagador": el dueño tiene su color
-// categórico propio; cualquier otra persona (colaboradores) usa un color
-// neutro, porque no participan del reparto y no deben leerse como una
-// "serie" propia en el balance.
+// categórico propio (SERIES_VARS) y cada colaborador el suyo aparte
+// (COLAB_VARS, paleta distinta a propósito — ver el comentario en
+// styles.css), para que se los distinga entre sí y del dueño de un vistazo.
+// Punto único de verdad: todo lo que pinte un avatar/punto/chip de una
+// persona tiene que pasar por acá, no recalcular el color en otro lado.
 function payerColorVar(name) {
-  const idx = socios.indexOf(name);
-  return idx !== -1 ? socioColorVar(idx) : NEUTRAL_VAR;
+  const idxSocio = socios.indexOf(name);
+  if (idxSocio !== -1) return socioColorVar(idxSocio);
+  const idxColab = colaboradores.indexOf(name);
+  if (idxColab !== -1) return colaboradorColorVar(idxColab);
+  return NEUTRAL_VAR;
 }
 
 function socioInitial(name) {
@@ -518,7 +528,7 @@ async function cargarHistorialLogins() {
     filas.forEach(f => {
       const row = document.createElement("div");
       row.className = "ajustes-socio-row";
-      row.innerHTML = `<span class="socio-dot" style="background:${NEUTRAL_VAR}"></span> ${escapeHtml(f.nombre)}
+      row.innerHTML = `<span class="socio-dot" style="background:${payerColorVar(f.nombre)}"></span> ${escapeHtml(f.nombre)}
         <span class="muted small" style="margin-left:auto;">${f.veces} ${f.veces === 1 ? "vez" : "veces"}</span>`;
       wrap.appendChild(row);
     });
@@ -1834,12 +1844,12 @@ function renderColaboradoresTotales() {
     card.innerHTML = `
       <div class="socio-total-row">
         <div class="socio-total-name">
-          <span class="socio-dot" style="background:${NEUTRAL_VAR}"></span>
+          <span class="socio-dot" style="background:${colaboradorColorVar(idx)}"></span>
           ${escapeHtml(nombre)}
         </div>
         <div class="socio-total-amount">${money(porColaborador[idx])}</div>
       </div>
-      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${NEUTRAL_VAR}"></div></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${colaboradorColorVar(idx)}"></div></div>
     `;
     wrap.appendChild(card);
   });
@@ -1926,13 +1936,13 @@ function renderAjustesSocios() {
   colabWrap.innerHTML = "";
   if (colaboradores.length) {
     colabEmpty.classList.add("hidden");
-    colaboradores.forEach((nombre) => {
+    colaboradores.forEach((nombre, idx) => {
       const row = document.createElement("div");
       row.className = "ajustes-socio-row";
       const removeBtn = esAdmin
         ? `<button type="button" class="icon-btn danger colaborador-remove-btn" data-nombre="${escapeHtml(nombre)}" aria-label="Quitar empleado" style="margin-left:auto;">🗑️</button>`
         : "";
-      row.innerHTML = `<span class="socio-dot" style="background:${NEUTRAL_VAR}"></span> ${escapeHtml(nombre)} ${removeBtn}`;
+      row.innerHTML = `<span class="socio-dot" style="background:${colaboradorColorVar(idx)}"></span> ${escapeHtml(nombre)} ${removeBtn}`;
       colabWrap.appendChild(row);
     });
   } else {
