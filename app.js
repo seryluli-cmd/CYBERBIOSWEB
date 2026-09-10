@@ -1130,7 +1130,7 @@ function renderCierreItem(f) {
 // Fila de un turno del mes en curso ya vencido (ver turnosDelMesActual)
 // que todavía no tiene cierre cargado. El botón "Cargar" abre el modal de
 // Nuevo cierre con esa fecha y turno ya preseleccionados — cualquiera puede
-// tocarlo (admin o empleado), igual que cualquiera puede cargar un cierre
+// tocarlo (admin o colaborador), igual que cualquiera puede cargar un cierre
 // nuevo con el +.
 function renderCierreFaltante(fecha, turno) {
   const li = document.createElement("li");
@@ -1961,7 +1961,7 @@ function renderAjustesSocios() {
       const row = document.createElement("div");
       row.className = "ajustes-socio-row";
       const removeBtn = esAdmin
-        ? `<button type="button" class="icon-btn danger colaborador-remove-btn" data-nombre="${escapeHtml(nombre)}" aria-label="Quitar empleado" style="margin-left:auto;">🗑️</button>`
+        ? `<button type="button" class="icon-btn danger colaborador-remove-btn" data-nombre="${escapeHtml(nombre)}" aria-label="Quitar colaborador" style="margin-left:auto;">🗑️</button>`
         : "";
       row.innerHTML = `<span class="socio-dot" style="background:${colaboradorColorVar(idx)}"></span> ${escapeHtml(nombre)} ${removeBtn}`;
       colabWrap.appendChild(row);
@@ -1988,7 +1988,7 @@ function renderAjustesSocios() {
   $('.tabbtn[data-tab="balance"]').classList.toggle("hidden", socios.length <= 1);
 }
 
-// Alta/baja de empleados directo desde Ajustes — a diferencia de los
+// Alta/baja de colaboradores directo desde Ajustes — a diferencia de los
 // socios (que se definen una única vez en el setup), la lista de
 // colaboradores puede crecer o achicarse con el tiempo. Solo el admin.
 async function agregarColaboradorDesdeAjustes() {
@@ -2004,7 +2004,7 @@ async function agregarColaboradorDesdeAjustes() {
       colaboradores: fbSdk.arrayUnion(nombre)
     });
     input.value = "";
-    showToast("Empleado agregado ✅");
+    showToast("Colaborador agregado ✅");
   } catch (e) {
     console.error(e);
     showToast("No se pudo agregar. Revisá tu conexión.");
@@ -2017,7 +2017,7 @@ async function quitarColaborador(nombre) {
     await fbSdk.updateDoc(fbSdk.doc(db, "config", "socios"), {
       colaboradores: fbSdk.arrayRemove(nombre)
     });
-    showToast("Empleado quitado");
+    showToast("Colaborador quitado");
   } catch (e) {
     console.error(e);
     showToast("No se pudo quitar. Revisá tu conexión.");

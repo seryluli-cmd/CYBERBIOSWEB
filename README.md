@@ -2,7 +2,7 @@
 
 PWA en JavaScript vanilla (sin build, sin frameworks) para que **CyberBIOS**
 ⌨️ registre gastos, facturación diaria y un checklist de ideas/metas del
-negocio. La usa el dueño (admin) y sus empleados desde el celular como app
+negocio. La usa el dueño (admin) y sus colaboradores desde el celular como app
 instalada (Firestore la mantiene sincronizada entre todos los dispositivos en
 tiempo real, con soporte offline).
 
@@ -23,9 +23,9 @@ dato de un proyecto es visible desde el otro.
   en app.js). Si algún día sumás un segundo negocio bajo este mismo
   proyecto, alcanza con agregar un objeto más a `NEGOCIOS` y todo lo demás
   ya sabe manejar N negocios.
-- **Empleados editables desde la app, no solo en el setup.** A diferencia
+- **Colaboradores editables desde la app, no solo en el setup.** A diferencia
   del proyecto original (donde los colaboradores solo se cargaban una vez
-  al principio), acá en **Ajustes → Empleados** el admin puede agregar o
+  al principio), acá en **Ajustes → Colaboradores** el admin puede agregar o
   quitar gente en cualquier momento (`agregarColaboradorDesdeAjustes()` /
   `quitarColaborador()`), usando `arrayUnion`/`arrayRemove` de Firestore.
 - **Marca violeta** (`--series-1: #7c3aed`) en vez del azul original, e
@@ -64,7 +64,7 @@ profundizar; acá va un resumen adaptado.
   `{ socios: [string], colaboradores: string[], admins: string[], pins: { [nombre]: "1234" } }`.
   `socios` tiene un único nombre (vos, el dueño) y `admins` siempre lo
   incluye — no hay checkbox de admin en el setup porque no hace falta
-  elegir. `colaboradores` (empleados) se puede editar después desde Ajustes.
+  elegir. El campo `colaboradores` se puede editar después desde Ajustes.
 - **`gastos`** — `{ importe, descripcion, categoria, pagadoPor, negocio, fecha, creadoEn, fotoUrl?, fotoPath? }`.
   `categoria` es una de: Kiosko, Bebidas, Panchos, Art Limpieza, Servicios,
   Alquiler, Mantenimiento Gral, Otros (opciones fijas en el `<select>` de
@@ -95,7 +95,7 @@ profundizar; acá va un resumen adaptado.
   primero). Cualquier turno cuya ventana + los 40 min de gracia ya pasaron
   y todavía no tiene cierre cargado aparece como fila roja "⚠️ CAJA NO
   CARGADA" con un botón **Cargar** — lo puede usar cualquiera (admin o
-  empleado) en cualquier momento, abre "Nuevo cierre" con esa fecha/turno
+  colaborador) en cualquier momento, abre "Nuevo cierre" con esa fecha/turno
   ya preseleccionados. Un turno todavía en curso (no venció) simplemente no
   se muestra hasta que se cargue o venza. Esto no se reconstruye para
   meses anteriores a hoy — ahí la lista sigue mostrando solo lo real, sin
@@ -122,16 +122,16 @@ profundizar; acá va un resumen adaptado.
 
 Cada persona se identifica con su nombre + un PIN de 4 dígitos (una vez por
 celular, se recuerda hasta usar "Cambiar de usuario" en Ajustes). El admin
-(vos) ve botones ✏️/🗑️ para editar y borrar gastos/cierres; los empleados
+(vos) ve botones ✏️/🗑️ para editar y borrar gastos/cierres; los colaboradores
 solo cargan y ven.
 
 Además, dos vistas con totales mensuales/históricos son **solo para el
-admin** (los empleados no las ven en absoluto, ni la tarjeta para entrar):
+admin** (los colaboradores no las ven en absoluto, ni la tarjeta para entrar):
 - La sección **"Resumen mensual"** (`soloAdmin` en `SECCIONES`, dentro de
-  `renderSeccionCards()`) — no aparece como tarjeta para empleados.
+  `renderSeccionCards()`) — no aparece como tarjeta para colaboradores.
 - El bloque **"Facturado este mes"** dentro de "Cierre de Turno"
   (`#facturado-total-mes-wrap`, ocultado en `renderFacturado()` según
-  `esAdmin`) — los empleados solo ven el total de "Hoy".
+  `esAdmin`) — los colaboradores solo ven el total de "Hoy".
 
 ⚠️ **No es una capa de seguridad real** — cualquier dispositivo con la
 `firebaseConfig` puede leer/escribir todo en Firestore sin pasar por el PIN

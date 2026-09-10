@@ -15,7 +15,7 @@
   --series-2: #eb6834; /* naranja — segunda serie si hiciera falta */
   --series-3: #1baf7a; /* aqua — idem */
 
-  /* Colores de colaboradores (empleados, no dueño): uno por persona, a
+  /* Colores de colaboradores (no dueño): uno por persona, a
      propósito en tonos que no aparecen en --series-* ni en --good/
      --critical, para que no se confundan entre sí ni con el dueño ni con
      un aviso de la app. Ver colaboradorColorVar() en app.js. */
