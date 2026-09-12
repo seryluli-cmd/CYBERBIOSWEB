@@ -61,14 +61,17 @@ profundizar; acá va un resumen adaptado.
 ## Modelo de datos (Firestore)
 
 - **`config/socios`** (un solo documento) —
-  `{ socios: [string], colaboradores: string[], admins: string[], pins: { [nombre]: "1234" } }`.
+  `{ socios: [string], colaboradores: string[], admins: string[], pins: { [nombre]: "1234" }, categoriasGastos: string[] }`.
   `socios` tiene un único nombre (vos, el dueño) y `admins` siempre lo
   incluye — no hay checkbox de admin en el setup porque no hace falta
   elegir. El campo `colaboradores` se puede editar después desde Ajustes.
-- **`gastos`** — `{ importe, descripcion, categoria, pagadoPor, negocio, fecha, creadoEn, fotoUrl?, fotoPath? }`.
-  `categoria` es una de: Kiosko, Bebidas, Panchos, Art Limpieza, Servicios,
-  Alquiler, Mantenimiento Gral, Otros (opciones fijas en el `<select>` de
-  `index.html`, no se guardan en Firestore).
+- **`gastos`** — `{ importe, descripcion, categoria, pagadoPor, negocio, fecha, creadoEn, soloAdmin?, fotoUrl?, fotoPath? }`.
+  `categoria` es el nombre de una de las categorías editables desde Ajustes
+  → "Categorías de gastos" (ver `categoriasGastos` arriba) — ya no son
+  opciones fijas en el HTML, y no tienen ninguna noción de privacidad.
+  `soloAdmin` sí es lo que marca un gasto individual como privado
+  (checkbox "🔒 Gasto Admin" en el modal) — ver "Identidad y permisos"
+  abajo.
 - **`facturacion`** — `{ importe, turno, registradoPor, negocio, fecha, creadoEn }`.
   `turno` es `"mañana"` | `"tarde"` | `"noche"` (constante `TURNOS` en app.js) —
   de lunes a sábado son 3 turnos por día, cada uno carga su propia caja como
@@ -133,6 +136,25 @@ admin** (los colaboradores no las ven en absoluto, ni la tarjeta para entrar):
   (`#facturado-total-mes-wrap`, ocultado en `renderFacturado()` según
   `esAdmin`) — los colaboradores solo ven el total de "Hoy".
 
+**Categorías de gasto editables**: el admin puede crear/borrar categorías
+desde Ajustes → "Categorías de gastos" (`categoriasGastos` en Firestore,
+arriba) — son simples nombres, sin ninguna noción de privacidad.
+
+**Gastos privados ("Gasto Admin")**: al cargar o editar un gasto, el admin
+(y solo el admin — un colaborador ni ve el campo) puede tildar el
+checkbox **"🔒 Gasto Admin"**, que guarda `soloAdmin: true` en ese gasto
+puntual — de cualquier categoría, no hace falta que la categoría sea
+especial. `renderGastos()` y `exportGastosCSV()` filtran los gastos con
+`soloAdmin` cuando `!esAdmin`, así un colaborador nunca los ve ni en la
+lista ni en el CSV. Para cargarlos/verlos rápido sin scrollear entre los
+gastos públicos, tienen su propia pantalla **"Gastos S/Admin"** (`soloAdmin`
+en `SECCIONES`, misma lógica que "Resumen mensual" de arriba) — no
+reemplaza la lista común: el admin que entra a "Gastos" sigue viendo
+también los privados mezclados (con un aviso "🔒 Solo admin" en la fila
+para distinguirlos). El total sí entra en Resumen mensual (ya admin-only)
+como cualquier otro gasto. Borrar una categoría no toca los gastos que ya
+la tienen cargada, solo deja de poder elegirse para gastos nuevos.
+
 ⚠️ **No es una capa de seguridad real** — cualquier dispositivo con la
 `firebaseConfig` puede leer/escribir todo en Firestore sin pasar por el PIN
 de la app. Sirve para identificar quién usa cada celular, no para proteger
@@ -146,6 +168,7 @@ screen-quien-sos (identificarte con PIN)
        Gastos / Facturado / Resumen mensual / Caja de IDEAS)
        ├─ screen-app       (tabs: Gastos, Balance*, Ajustes)
        ├─ screen-facturado
+       ├─ screen-gastos-admin (Gastos S/Admin***)
        ├─ screen-resumen
        ├─ screen-ideas
        └─ screen-mantenimiento
@@ -155,6 +178,8 @@ screen-ajustes → screen-fotos (fotos guardadas)
 ```
 \* la pestaña Balance está oculta por default (un solo dueño = balance
 siempre trivial); reaparecería sola si `socios.length` pasa a ser > 1.
+\*\*\* "Gastos S/Admin" es `soloAdmin` en `SECCIONES` — no aparece como
+tarjeta para colaboradores, igual que "Resumen mensual".
 
 ⚠️ Ojo con este punto si se toca la navegación: como `goToNegocioOrHome()`
 saltea `screen-negocio` de una, **Ideas y Mantenimiento necesitan su propio
