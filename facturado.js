@@ -6,7 +6,7 @@ import { state } from "./state.js";
 import {
   $, $$, showToast, escapeHtml, fechaDeRegistro, fechaLocalISO, fechaLimiteHistorial, fechaBaseMes, mesLabel,
   money, parseMoneyInput, formatMoneyValue, socioInitial, setSyncOffline, conTimeout, downloadCSV,
-  TURNOS, turnoLabelParaFecha, turnoActual, turnoVencimiento, turnosDelMes, fechaParaTurno
+  turnosDelDia, turnoLabelParaFecha, turnoActual, turnoVencimiento, turnosDelMes, fechaParaTurno
 } from "./utils.js";
 import { payerColorVar, renderPagadorChipsEn } from "./identidad.js";
 
@@ -111,11 +111,12 @@ export function renderFacturado() {
   // "Hoy" es siempre el día real, sin importar qué mes se esté navegando.
   let totalHoy = 0;
   const turnosHoy = new Set();
+  const turnosDeHoy = turnosDelDia(now); // 3 entre semana, 2 (t1/t2) si hoy es domingo
   items.forEach(f => {
     const fecha = fechaDeRegistro(f);
     if (fecha.toDateString() === now.toDateString()) {
       totalHoy += Number(f.importe) || 0;
-      if (TURNOS.includes(f.turno)) turnosHoy.add(f.turno);
+      if (turnosDeHoy.includes(f.turno)) turnosHoy.add(f.turno);
     }
   });
 
@@ -178,7 +179,7 @@ export function renderFacturado() {
   $("#facturado-total-mes-wrap").classList.toggle("hidden", !state.esAdmin);
   $("#facturado-total-mes").textContent = money(totalMes);
   $("#facturado-total-hoy").textContent = money(totalHoy);
-  $("#facturado-turnos-hoy").textContent = `${turnosHoy.size} de ${TURNOS.length} turnos cargados`;
+  $("#facturado-turnos-hoy").textContent = `${turnosHoy.size} de ${turnosDeHoy.length} turnos cargados`;
 }
 
 // Chips de "¿Quién lo cargó?" en el modal de Facturado.
@@ -212,11 +213,20 @@ export function setDefaultFechaFact() {
   $("#input-fecha-fact").value = fechaLocalISO(fechaParaTurno(turnoActual()));
 }
 
-// Sincroniza qué chip de turno queda marcado como seleccionado según
-// selectedTurno. Se llama al abrir el modal y cada vez que se cambia la
-// fecha a mano.
+// Arma los chips de turno según el día elegido (3 entre semana, 2 —t1/t2—
+// los domingos, ver turnosDelDia) y marca el seleccionado. Se llama al
+// abrir el modal y cada vez que se cambia la fecha a mano. Si el turno que
+// estaba elegido no existe para el día nuevo (ej. tenía "Noche" marcada y
+// se cambió la fecha a un domingo), se deselecciona: mejor forzar a
+// elegir de nuevo que dejar guardado un turno que no corresponde a ese día.
 export function actualizarChipsTurnoPorFecha() {
-  $$("#turno-options .pagador-chip").forEach(c => c.classList.toggle("selected", c.dataset.turno === state.selectedTurno));
+  const fechaStr = $("#input-fecha-fact").value;
+  const fecha = fechaStr ? new Date(fechaStr + "T12:00:00") : new Date();
+  const turnosDelDiaElegido = turnosDelDia(fecha);
+  if (!turnosDelDiaElegido.includes(state.selectedTurno)) state.selectedTurno = null;
+  $("#turno-options").innerHTML = turnosDelDiaElegido.map(t =>
+    `<div class="pagador-chip${t === state.selectedTurno ? " selected" : ""}" data-turno="${t}">${escapeHtml(turnoLabelParaFecha(fecha, t))}</div>`
+  ).join("");
 }
 
 // Sin argumento: alta de un cierre nuevo (usa el turno/fecha "actuales").

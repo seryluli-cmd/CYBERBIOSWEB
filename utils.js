@@ -113,15 +113,26 @@ export function fechaLimiteHistorial() {
 }
 
 export const TURNOS = ["mañana", "tarde", "noche"];
-export const TURNO_LABEL = { "mañana": "Mañana", "tarde": "Tarde", "noche": "Noche" };
+export const TURNOS_DOMINGO = ["t1", "t2"];
+export const TURNO_LABEL = {
+  "mañana": "Mañana", "tarde": "Tarde", "noche": "Noche",
+  "t1": "Turno 1 (06-18h)", "t2": "Turno 2 (18-06h)"
+};
 
 // Mañana 06-14, Tarde 14-22, Noche 22-06 (cruza medianoche) — con 40 min de
 // gracia: quien cierra el turno anterior tarda un rato en cargarlo, así que
 // el turno saliente sigue siendo "el actual" hasta 40 min después de su
 // hora nominal de cierre (ej: a las 6:20 todavía propone "noche", no
 // "mañana", porque lo más probable es que estén cerrando la noche).
-// Domingo es un día como cualquier otro: los mismos 3 turnos, sin excepción.
+// Domingo es la única excepción: 2 turnos de 12hs en vez de 3 (T1 06-18,
+// T2 18-06, también cruza medianoche). turnosDelDia() es el único lugar
+// que decide qué esquema aplica a una fecha — no repetir "¿es domingo?"
+// suelto en cada pantalla que toca turnos (Facturado, Resumen).
 const TURNO_GRACIA_MIN = 40;
+
+export function turnosDelDia(fecha) {
+  return fecha.getDay() === 0 ? TURNOS_DOMINGO : TURNOS;
+}
 
 export function turnoLabelParaFecha(fecha, turno) {
   return TURNO_LABEL[turno] || turno;
@@ -130,6 +141,16 @@ export function turnoLabelParaFecha(fecha, turno) {
 export function turnoActual() {
   const now = new Date();
   const mins = now.getHours() * 60 + now.getMinutes();
+  // Antes de la hora de gracia, el turno todavía en curso es el nocturno
+  // de AYER (cruza medianoche) — el esquema que manda para decidir mañana/
+  // t1 vs. tarde/noche/t2 es el de AYER, no el de hoy.
+  const diaEsquema = new Date(now);
+  if (mins <= 6 * 60 + TURNO_GRACIA_MIN) diaEsquema.setDate(diaEsquema.getDate() - 1);
+
+  if (diaEsquema.getDay() === 0) {
+    if (mins > 6 * 60 + TURNO_GRACIA_MIN && mins <= 18 * 60 + TURNO_GRACIA_MIN) return "t1";
+    return "t2";
+  }
   // > (no >=): a los 40 min exactos todavía es el turno saliente cerrando,
   // recién al minuto 41 se considera empezado el turno siguiente.
   if (mins > 6 * 60 + TURNO_GRACIA_MIN && mins <= 14 * 60 + TURNO_GRACIA_MIN) return "mañana";
@@ -150,6 +171,9 @@ export function turnoVencimiento(diaBase, turno) {
     return d;
   }
   if (turno === "tarde") { d.setHours(22, TURNO_GRACIA_MIN, 0, 0); return d; }
+  if (turno === "t1") { d.setHours(18, TURNO_GRACIA_MIN, 0, 0); return d; }
+  // "noche" y "t2" (domingo) cruzan medianoche igual: vencen a las 06:xx
+  // del día siguiente.
   d.setDate(d.getDate() + 1);
   d.setHours(6, TURNO_GRACIA_MIN, 0, 0);
   return d;
@@ -157,10 +181,11 @@ export function turnoVencimiento(diaBase, turno) {
 
 // Los turnos de cada día del mes dado, de día 1 a hoy (o al último día si
 // ya es un mes cerrado) — el mes completo, sin filtrar todavía por si cada
-// turno ya venció. Todos los días (incluido domingo) tienen los mismos 3
-// turnos. Quien arma la grilla (renderFacturado) decide caso por caso: con
-// cierre real, se muestra tal cual (haya vencido o no su ventana); sin
-// cierre real, recién se marca "faltante" si turnoVencimiento() ya pasó.
+// turno ya venció. Cada día trae los que le tocan según turnosDelDia() (3
+// entre semana, 2 los domingos). Quien arma la grilla (renderFacturado)
+// decide caso por caso: con cierre real, se muestra tal cual (haya vencido
+// o no su ventana); sin cierre real, recién se marca "faltante" si
+// turnoVencimiento() ya pasó.
 export function turnosDelMes(base) {
   const now = new Date();
   const esMesActual = base.getMonth() === now.getMonth() && base.getFullYear() === now.getFullYear();
@@ -168,22 +193,24 @@ export function turnosDelMes(base) {
   const fin = esMesActual ? now : new Date(base.getFullYear(), base.getMonth() + 1, 0);
   const slots = [];
   while (dia <= fin) {
-    TURNOS.forEach(turno => slots.push({ fecha: new Date(dia), turno }));
+    turnosDelDia(dia).forEach(turno => slots.push({ fecha: new Date(dia), turno }));
     dia.setDate(dia.getDate() + 1);
   }
   return slots;
 }
 
 // Fecha "natural" (de calendario) de un turno, para proponerla por
-// defecto. Noche es especial porque cruza la medianoche: si todavía no
-// arrancó la Noche de HOY, el turno Noche más reciente es el de ANOCHE
-// (arrancó ayer) — recién a partir de esa hora pasa a ser el de esta
-// noche. Sin este ajuste, cerrar el turno Noche después de medianoche
-// quedaba fechado al día (y a veces al MES) siguiente, en vez del día en
-// que realmente arrancó. La Noche arranca a las 22hs.
+// defecto. Noche (y T2 los domingos) son especiales porque cruzan la
+// medianoche: si todavía no arrancó ese turno HOY, el más reciente con ese
+// nombre es el de ANOCHE (arrancó ayer) — recién a partir de su hora de
+// inicio pasa a ser el de esta noche/hoy. Sin este ajuste, cerrar el turno
+// después de medianoche quedaba fechado al día (y a veces al MES)
+// siguiente, en vez del día en que realmente arrancó. Noche arranca a las
+// 22hs, T2 a las 18hs.
 export function fechaParaTurno(turno) {
   const hoy = new Date();
-  if (turno === "noche" && hoy.getHours() < 22) {
+  const horaInicio = turno === "t2" ? 18 : 22;
+  if ((turno === "noche" || turno === "t2") && hoy.getHours() < horaInicio) {
     const ayer = new Date(hoy);
     ayer.setDate(ayer.getDate() - 1);
     return ayer;
