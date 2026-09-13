@@ -100,7 +100,11 @@ los event listeners de la UI, pero ya no tiene la lógica de cada pantalla.
   turno carga su propia caja como un cierre separado. `turnoActual()`
   propone el turno según la hora (mañana 06-14, tarde 14-22, noche 22-06;
   domingo t1 06-18, t2 18-06) al abrir "Nuevo cierre", pero se puede
-  cambiar a mano. La pantalla de Facturado suma los de **hoy** aparte
+  cambiar a mano. Si se cambia la fecha a un día del otro esquema, el
+  turno se vuelve a proponer según la hora
+  (`turnoSugeridoParaFecha()`) para que nunca quede sin elegir — salvo
+  editando un cierre ya cargado, donde se deselecciona a propósito para
+  no reescribirle el turno a un dato histórico. La pantalla de Facturado suma los de **hoy** aparte
   (`facturado-total-hoy` / `facturado-turnos-hoy`, "X de N turnos
   cargados", N según el día) además del total del mes. El **Resumen
   mensual** también tiene una sección "Facturado por día y turno" que

@@ -6,7 +6,7 @@ import { state } from "./state.js";
 import {
   $, $$, showToast, escapeHtml, fechaDeRegistro, fechaLocalISO, fechaLimiteHistorial, fechaBaseMes, mesLabel,
   money, parseMoneyInput, formatMoneyValue, socioInitial, setSyncOffline, conTimeout, downloadCSV,
-  turnosDelDia, turnoLabelParaFecha, turnoActual, turnoVencimiento, turnosDelMes, fechaParaTurno
+  turnosDelDia, turnoLabelParaFecha, turnoActual, turnoSugeridoParaFecha, turnoVencimiento, turnosDelMes, fechaParaTurno
 } from "./utils.js";
 import { payerColorVar, renderPagadorChipsEn } from "./identidad.js";
 
@@ -215,15 +215,22 @@ export function setDefaultFechaFact() {
 
 // Arma los chips de turno según el día elegido (3 entre semana, 2 —t1/t2—
 // los domingos, ver turnosDelDia) y marca el seleccionado. Se llama al
-// abrir el modal y cada vez que se cambia la fecha a mano. Si el turno que
-// estaba elegido no existe para el día nuevo (ej. tenía "Noche" marcada y
-// se cambió la fecha a un domingo), se deselecciona: mejor forzar a
-// elegir de nuevo que dejar guardado un turno que no corresponde a ese día.
+// abrir el modal y cada vez que se cambia la fecha a mano.
+//
+// Si el turno que estaba elegido no existe para el día nuevo (ej. tenía
+// "Noche" y se cambió la fecha a un domingo), en un cierre NUEVO se
+// propone el que corresponde a la hora, para que nunca haya que elegirlo
+// a mano. Al EDITAR uno ya cargado se deselecciona en vez de proponer:
+// un domingo viejo guardado como "mañana" (de antes de esta regla) no
+// puede pasar a T1/T2 solo porque alguien lo abrió a cierta hora — que
+// el admin elija a conciencia.
 export function actualizarChipsTurnoPorFecha() {
   const fechaStr = $("#input-fecha-fact").value;
   const fecha = fechaStr ? new Date(fechaStr + "T12:00:00") : new Date();
   const turnosDelDiaElegido = turnosDelDia(fecha);
-  if (!turnosDelDiaElegido.includes(state.selectedTurno)) state.selectedTurno = null;
+  if (!turnosDelDiaElegido.includes(state.selectedTurno)) {
+    state.selectedTurno = state.editingCierreId ? null : turnoSugeridoParaFecha(fecha);
+  }
   $("#turno-options").innerHTML = turnosDelDiaElegido.map(t =>
     `<div class="pagador-chip${t === state.selectedTurno ? " selected" : ""}" data-turno="${t}">${escapeHtml(turnoLabelParaFecha(fecha, t))}</div>`
   ).join("");

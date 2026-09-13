@@ -138,16 +138,12 @@ export function turnoLabelParaFecha(fecha, turno) {
   return TURNO_LABEL[turno] || turno;
 }
 
-export function turnoActual() {
-  const now = new Date();
-  const mins = now.getHours() * 60 + now.getMinutes();
-  // Antes de la hora de gracia, el turno todavía en curso es el nocturno
-  // de AYER (cruza medianoche) — el esquema que manda para decidir mañana/
-  // t1 vs. tarde/noche/t2 es el de AYER, no el de hoy.
-  const diaEsquema = new Date(now);
-  if (mins <= 6 * 60 + TURNO_GRACIA_MIN) diaEsquema.setDate(diaEsquema.getDate() - 1);
-
-  if (diaEsquema.getDay() === 0) {
+// Qué turno le corresponde a una hora (minutos desde medianoche) bajo el
+// esquema de un día. Único lugar donde viven las ventanas horarias: lo
+// usan turnoActual() (para ahora) y turnoSugeridoParaFecha() (para una
+// fecha elegida a mano), así no se duplican los rangos.
+function turnoSegunHora(esDomingo, mins) {
+  if (esDomingo) {
     if (mins > 6 * 60 + TURNO_GRACIA_MIN && mins <= 18 * 60 + TURNO_GRACIA_MIN) return "t1";
     return "t2";
   }
@@ -156,6 +152,26 @@ export function turnoActual() {
   if (mins > 6 * 60 + TURNO_GRACIA_MIN && mins <= 14 * 60 + TURNO_GRACIA_MIN) return "mañana";
   if (mins > 14 * 60 + TURNO_GRACIA_MIN && mins <= 22 * 60 + TURNO_GRACIA_MIN) return "tarde";
   return "noche";
+}
+
+export function turnoActual() {
+  const now = new Date();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  // Antes de la hora de gracia, el turno todavía en curso es el nocturno
+  // de AYER (cruza medianoche) — el esquema que manda para decidir mañana/
+  // t1 vs. tarde/noche/t2 es el de AYER, no el de hoy.
+  const diaEsquema = new Date(now);
+  if (mins <= 6 * 60 + TURNO_GRACIA_MIN) diaEsquema.setDate(diaEsquema.getDate() - 1);
+  return turnoSegunHora(diaEsquema.getDay() === 0, mins);
+}
+
+// Turno a proponer cuando se elige otra fecha a mano en "Nuevo cierre": el
+// que corresponde a la hora de AHORA, pero bajo el esquema de ESE día (2
+// turnos si cae domingo, 3 si no). Es para que el turno nunca quede sin
+// elegir al cambiar la fecha; quien carga siempre puede tocar otro chip.
+export function turnoSugeridoParaFecha(fecha) {
+  const now = new Date();
+  return turnoSegunHora(fecha.getDay() === 0, now.getHours() * 60 + now.getMinutes());
 }
 
 // Momento exacto en que un turno de un día calendario dado queda vencido
