@@ -85,7 +85,7 @@ export const state = {
   seccionActual: null,  // "gastos" | "facturado" | "resumen"
   selectedPagador: null,
   selectedRegistrador: null,
-  selectedTurno: null, // "mañana" | "tarde" | "noche" — turno del cierre que se está cargando
+  selectedTurno: null, // "mañana"|"tarde"|"noche", o "t1"|"t2" si la fecha elegida es domingo
 
   resumenMesOffset: 0,  // 0 = mes actual, -1 = mes anterior, etc. (Resumen mensual)
   gastosMesOffset: 0,   // ídem, para la pantalla de Gastos — se reinicia a 0 cada vez que se entra

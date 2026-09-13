@@ -90,20 +90,30 @@ los event listeners de la UI, pero ya no tiene la lógica de cada pantalla.
   (checkbox "🔒 Gasto Admin" en el modal) — ver "Identidad y permisos"
   abajo.
 - **`facturacion`** — `{ importe, turno, registradoPor, negocio, fecha, creadoEn }`.
-  `turno` es `"mañana"` | `"tarde"` | `"noche"` (constante `TURNOS` en utils.js) —
-  todos los días de la semana, domingo incluido, son 3 turnos por día, cada
-  uno carga su propia caja como un cierre separado. `turnoActual()` propone
-  el turno según la hora (mañana 06-14, tarde 14-22, noche 22-06) al abrir
-  "Nuevo cierre", pero se puede cambiar a mano. La pantalla de Facturado
-  suma los de **hoy** aparte (`facturado-total-hoy` / `facturado-turnos-hoy`,
-  "X de 3 turnos cargados") además del total del mes. El **Resumen mensual**
-  también tiene una sección "Facturado por día y turno" que agrupa los
-  cierres del mes por día calendario y muestra el total de cada turno
-  dentro de ese día.
+  `turno` es `"mañana"` | `"tarde"` | `"noche"` de lunes a sábado — pero
+  **el domingo es distinto: solo 2 turnos de 12hs, `"t1"` (06-18) y `"t2"`
+  (18-06)**, en vez de los 3 de siempre. `turnosDelDia(fecha)` en utils.js
+  es el único lugar que decide qué esquema aplica a una fecha dada; de ahí
+  toman la lista tanto el selector de turno del modal (los chips se arman
+  según el día elegido) como la grilla de cajas faltantes y el desglose por
+  turno de Resumen — nadie más pregunta "¿es domingo?" por su cuenta. Cada
+  turno carga su propia caja como un cierre separado. `turnoActual()`
+  propone el turno según la hora (mañana 06-14, tarde 14-22, noche 22-06;
+  domingo t1 06-18, t2 18-06) al abrir "Nuevo cierre", pero se puede
+  cambiar a mano. Si se cambia la fecha a un día del otro esquema, el
+  turno se vuelve a proponer según la hora
+  (`turnoSugeridoParaFecha()`) para que nunca quede sin elegir — salvo
+  editando un cierre ya cargado, donde se deselecciona a propósito para
+  no reescribirle el turno a un dato histórico. La pantalla de Facturado suma los de **hoy** aparte
+  (`facturado-total-hoy` / `facturado-turnos-hoy`, "X de N turnos
+  cargados", N según el día) además del total del mes. El **Resumen
+  mensual** también tiene una sección "Facturado por día y turno" que
+  agrupa los cierres del mes por día calendario y muestra el total de cada
+  turno dentro de ese día.
 - **Detección de cajas faltantes** (`turnosDelMes()` / `turnoVencimiento()`
   en utils.js, usadas desde facturado.js): la lista de "Cierre de Turno" arma la grilla completa del mes
-  en curso (día 1 a hoy, orden Mañana → Tarde → Noche, más reciente
-  primero). Cualquier turno cuya ventana + los 40 min de gracia ya pasaron
+  en curso (día 1 a hoy, orden Mañana → Tarde → Noche —o T1 → T2 los
+  domingos—, más reciente primero). Cualquier turno cuya ventana + los 40 min de gracia ya pasaron
   y todavía no tiene cierre cargado aparece como fila roja "⚠️ CAJA NO
   CARGADA" con un botón **Cargar** — lo puede usar cualquiera (admin o
   colaborador) en cualquier momento, abre "Nuevo cierre" con esa fecha/turno

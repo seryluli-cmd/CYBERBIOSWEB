@@ -760,11 +760,10 @@
 
       <div class="field">
         <label>¿Qué turno?</label>
-        <div id="turno-options" class="pagador-options">
-          <div class="pagador-chip" data-turno="mañana">Mañana</div>
-          <div class="pagador-chip" data-turno="tarde">Tarde</div>
-          <div class="pagador-chip" data-turno="noche">Noche</div>
-        </div>
+        <!-- Contenido armado por actualizarChipsTurnoPorFecha() (facturado.js)
+             según el día elegido: 3 chips entre semana, 2 (T1/T2) si es
+             domingo — ver turnosDelDia() en utils.js. -->
+        <div id="turno-options" class="pagador-options"></div>
       </div>
 
       <div class="field" id="campo-pagador-fact">

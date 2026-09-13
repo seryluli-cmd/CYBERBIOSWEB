@@ -3,7 +3,7 @@
 // ya guardados, no tocan ni mueven ningún dato.
 // ============================================================
 import { state } from "./state.js";
-import { $, escapeHtml, fechaDeRegistro, fechaBaseMes, mesLabel, money, socioColorVar, TURNOS, turnoLabelParaFecha } from "./utils.js";
+import { $, escapeHtml, fechaDeRegistro, fechaBaseMes, mesLabel, money, socioColorVar, turnosDelDia, turnoLabelParaFecha } from "./utils.js";
 import { payerColorVar } from "./identidad.js";
 import { gastosDelNegocio } from "./gastos.js";
 import { facturacionesDelNegocio } from "./facturado.js";
@@ -84,18 +84,24 @@ export function renderResumen() {
 
   // Agrupa los cierres del mes por día calendario, y dentro de cada día
   // por turno — para ver de un vistazo cuánto se trabajó cada día y cómo
-  // se repartió entre Mañana/Tarde/Noche.
+  // se repartió entre Mañana/Tarde/Noche (T1/T2 si ese día es domingo).
   const porDiaMap = new Map();
   factMes.forEach(f => {
     const d = fechaDeRegistro(f);
     const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
     if (!porDiaMap.has(key)) {
-      porDiaMap.set(key, { fecha: d, total: 0, turnos: { "mañana": 0, "tarde": 0, "noche": 0 } });
+      const turnos = {};
+      turnosDelDia(d).forEach(t => { turnos[t] = 0; });
+      porDiaMap.set(key, { fecha: d, total: 0, turnos });
     }
     const entry = porDiaMap.get(key);
     const importe = Number(f.importe) || 0;
     entry.total += importe;
-    if (TURNOS.includes(f.turno)) entry.turnos[f.turno] += importe;
+    // Turno de datos viejos que no corresponde al esquema de ese día (ej.
+    // "mañana" en un domingo, cargado antes de que existiera T1/T2): no
+    // se pierde (ya entró en entry.total arriba), pero tampoco se fuerza
+    // en una columna que no es la suya.
+    if (entry.turnos[f.turno] !== undefined) entry.turnos[f.turno] += importe;
   });
   const dias = Array.from(porDiaMap.values()).sort((a, b) => b.fecha - a.fecha);
 
@@ -110,7 +116,7 @@ export function renderResumen() {
       const esHoy = dia.fecha.toDateString() === now.toDateString();
       const card = document.createElement("div");
       card.className = "socio-total-card";
-      const turnosHtml = TURNOS.map(t =>
+      const turnosHtml = turnosDelDia(dia.fecha).map(t =>
         `<span>${turnoLabelParaFecha(dia.fecha, t)}: ${money(dia.turnos[t])}</span>`
       ).join("");
       card.innerHTML = `
