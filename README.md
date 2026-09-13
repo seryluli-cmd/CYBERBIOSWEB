@@ -17,10 +17,11 @@ dato de un proyecto es visible desde el otro.
 - **Un solo dueño, sin reparto de gastos.** No hay "socios" que se dividen
   cuentas — `socios` en Firestore tiene un único nombre (vos), que es
   siempre admin. La pestaña **Balance** (quién le debe a quién) se oculta
-  sola cuando `socios.length <= 1` (ver `renderAjustesSocios()` en app.js).
+  sola cuando `socios.length <= 1` (ver `renderAjustesSocios()` en
+  ajustes.js).
 - **Un solo negocio.** `NEGOCIOS` tiene un único elemento — la pantalla de
   "elegir negocio" se saltea sola al identificarte (`goToNegocioOrHome()`
-  en app.js). Si algún día sumás un segundo negocio bajo este mismo
+  en sesion.js). Si algún día sumás un segundo negocio bajo este mismo
   proyecto, alcanza con agregar un objeto más a `NEGOCIOS` y todo lo demás
   ya sabe manejar N negocios.
 - **Colaboradores editables desde la app, no solo en el setup.** A diferencia
@@ -50,10 +51,26 @@ profundizar; acá va un resumen adaptado.
 
 ## Archivos
 
+`app.js` importa de todos los módulos de abajo — arranca la app y cablea
+los event listeners de la UI, pero ya no tiene la lógica de cada pantalla.
+
 | Archivo | Contenido |
 |---|---|
 | [index.html](index.html) | Todas las pantallas y modales del DOM. Un solo archivo, se muestra/oculta con clases `.screen`/`.active`. |
-| [app.js](app.js) | Toda la lógica: estado en memoria, Firebase, render, event listeners. |
+| [state.js](state.js) | Estado compartido entre pantallas (`state`) y las constantes fijas (config de Firebase, negocios, categorías default, PIN, etc.). |
+| [utils.js](utils.js) | Funciones puras/DOM sin estado: plata, fechas, turnos, colores por nombre, CSV, compresión de fotos. |
+| [firebase.js](firebase.js) | Carga del SDK de Firebase por CDN e inicio de sesión/conexión (`connectAndBoot`). |
+| [identidad.js](identidad.js) | Chips de pagador compartidos y color por nombre. |
+| [sesion.js](sesion.js) | Pantalla "¿Quién sos?" + PIN, socios/colaboradores en vivo, estado de conectividad. |
+| [navegacion.js](navegacion.js) | Tarjetas de negocio/sección y cambio de pestañas dentro de `screen-app`. |
+| [setup.js](setup.js) | Pantalla de configuración inicial (pegar `firebaseConfig` a mano). |
+| [gastos.js](gastos.js) | Pantalla Gastos y Gastos S/Admin: listado, modal, fotos, chips de pagador, CSV. |
+| [facturado.js](facturado.js) | Pantalla Facturado / Cierre de Turno, incluida la detección de cajas faltantes. |
+| [resumen.js](resumen.js) | Resumen mensual y Balance entre socios. |
+| [checklist.js](checklist.js) | Fábrica compartida por Ideas y Reportes de Mantenimiento (`crearModuloChecklist`). |
+| [ideas.js](ideas.js) / [reportes.js](reportes.js) | Configuran `checklist.js` con su colección, ids del DOM y textos puntuales. |
+| [ajustes.js](ajustes.js) | Pantalla Ajustes: socios/colaboradores, categorías, tema, exportar CSV, reset. |
+| [app.js](app.js) | Arranque (`start()`/`attemptReconnect()`) y cableado de todos los `addEventListener` de la UI. |
 | [styles.css](styles.css) | Variables CSS (`:root`) para tema claro/oscuro automático. |
 | [manifest.json](manifest.json) / [service-worker.js](service-worker.js) | Configuración PWA. |
 | [icons/](icons/) | Íconos de la app (192/512/maskable). |
@@ -73,27 +90,18 @@ profundizar; acá va un resumen adaptado.
   (checkbox "🔒 Gasto Admin" en el modal) — ver "Identidad y permisos"
   abajo.
 - **`facturacion`** — `{ importe, turno, registradoPor, negocio, fecha, creadoEn }`.
-  `turno` es `"mañana"` | `"tarde"` | `"noche"` (constante `TURNOS` en app.js) —
-  de lunes a sábado son 3 turnos por día, cada uno carga su propia caja como
-  un cierre separado. `turnoActual()` propone el turno según la hora (mañana
-  06-14, tarde 14-22, noche 22-06) al abrir "Nuevo cierre", pero se puede
-  cambiar a mano. La pantalla de Facturado suma los de **hoy** aparte
-  (`facturado-total-hoy` / `facturado-turnos-hoy`, "X de 3 turnos cargados")
-  además del total del mes. El **Resumen mensual** también tiene una
-  sección "Facturado por día y turno" que agrupa los cierres del mes por
-  día calendario y muestra el total de cada turno dentro de ese día.
-  ⚠️ **Excepción: los domingos son distintos** (`esDiaDomingo()` en app.js) —
-  ese día solo hay 2 turnos de 12hs en vez de 3, y se muestran con etiquetas
-  propias en vez de "Mañana"/"Noche" (ver `turnoLabelParaFecha()`): valor
-  `"mañana"` en Firestore se muestra como **"Domingo T1"** (06-18, absorbe
-  lo que sería "Tarde", que no existe ese día — el chip se oculta solo en
-  el modal según la fecha elegida) y valor `"noche"` se muestra como
-  **"Domingo T2"** (18-06 del lunes). El dato guardado sigue siendo
-  `"mañana"`/`"noche"` como cualquier otro día — lo único que cambia es la
-  etiqueta y el horario. El sábado a la noche sigue siendo el turno normal
-  22-06 (termina el domingo a la mañana), eso no cambia.
-- **Detección de cajas faltantes** (`turnosDelMesActual()` / `turnoVencimiento()`
-  en app.js): la lista de "Cierre de Turno" arma la grilla completa del mes
+  `turno` es `"mañana"` | `"tarde"` | `"noche"` (constante `TURNOS` en utils.js) —
+  todos los días de la semana, domingo incluido, son 3 turnos por día, cada
+  uno carga su propia caja como un cierre separado. `turnoActual()` propone
+  el turno según la hora (mañana 06-14, tarde 14-22, noche 22-06) al abrir
+  "Nuevo cierre", pero se puede cambiar a mano. La pantalla de Facturado
+  suma los de **hoy** aparte (`facturado-total-hoy` / `facturado-turnos-hoy`,
+  "X de 3 turnos cargados") además del total del mes. El **Resumen mensual**
+  también tiene una sección "Facturado por día y turno" que agrupa los
+  cierres del mes por día calendario y muestra el total de cada turno
+  dentro de ese día.
+- **Detección de cajas faltantes** (`turnosDelMes()` / `turnoVencimiento()`
+  en utils.js, usadas desde facturado.js): la lista de "Cierre de Turno" arma la grilla completa del mes
   en curso (día 1 a hoy, orden Mañana → Tarde → Noche, más reciente
   primero). Cualquier turno cuya ventana + los 40 min de gracia ya pasaron
   y todavía no tiene cierre cargado aparece como fila roja "⚠️ CAJA NO
@@ -115,9 +123,11 @@ profundizar; acá va un resumen adaptado.
   con quién lo tildó (`toggleReporteEstado()`) y se borra si se reabre; la
   tarjeta muestra "Reportado por X" y, si corresponde, "Resuelto por Y"
   debajo. Es una sección aparte, debajo de "Caja de IDEAS" en `SECCIONES`
-  (`renderSeccionCards()`), con su propia colección de Firestore — no
-  comparte datos con `ideas`. Ver `renderReportes()` / `reporteCard()` /
-  `listenReportes()` en app.js, que son un calco de las funciones de Ideas.
+  (`renderSeccionCards()` en navegacion.js), con su propia colección de
+  Firestore — no comparte datos con `ideas`. Toda la mecánica vive en
+  checklist.js (compartida con Ideas, ver `crearModuloChecklist()`) —
+  reportes.js solo configura la colección, los ids del DOM y los textos
+  puntuales.
 - **Storage**: fotos en `recibos/{negocio}/{timestamp}_{random}.jpg`, se
   borran solas a los 4 meses (el gasto nunca se borra, solo la foto).
 
@@ -131,10 +141,12 @@ solo cargan y ven.
 Además, dos vistas con totales mensuales/históricos son **solo para el
 admin** (los colaboradores no las ven en absoluto, ni la tarjeta para entrar):
 - La sección **"Resumen mensual"** (`soloAdmin` en `SECCIONES`, dentro de
-  `renderSeccionCards()`) — no aparece como tarjeta para colaboradores.
+  `renderSeccionCards()` en navegacion.js) — no aparece como tarjeta para
+  colaboradores.
 - El bloque **"Facturado este mes"** dentro de "Cierre de Turno"
-  (`#facturado-total-mes-wrap`, ocultado en `renderFacturado()` según
-  `esAdmin`) — los colaboradores solo ven el total de "Hoy".
+  (`#facturado-total-mes-wrap`, ocultado en `renderFacturado()` —
+  facturado.js — según `esAdmin`) — los colaboradores solo ven el total de
+  "Hoy".
 
 **Categorías de gasto editables**: el admin puede crear/borrar categorías
 desde Ajustes → "Categorías de gastos" (`categoriasGastos` en Firestore,
@@ -144,7 +156,7 @@ arriba) — son simples nombres, sin ninguna noción de privacidad.
 (y solo el admin — un colaborador ni ve el campo) puede tildar el
 checkbox **"🔒 Gasto Admin"**, que guarda `soloAdmin: true` en ese gasto
 puntual — de cualquier categoría, no hace falta que la categoría sea
-especial. `renderGastos()` y `exportGastosCSV()` filtran los gastos con
+especial. `renderGastos()` y `exportGastosCSV()` (gastos.js) filtran los gastos con
 `soloAdmin` cuando `!esAdmin`, así un colaborador nunca los ve ni en la
 lista ni en el CSV. Para cargarlos/verlos rápido sin scrollear entre los
 gastos públicos, tienen su propia pantalla **"Gastos S/Admin"** (`soloAdmin`
@@ -182,9 +194,10 @@ siempre trivial); reaparecería sola si `socios.length` pasa a ser > 1.
 tarjeta para colaboradores, igual que "Resumen mensual".
 
 ⚠️ Ojo con este punto si se toca la navegación: como `goToNegocioOrHome()`
-saltea `screen-negocio` de una, **Ideas y Mantenimiento necesitan su propio
-acceso directo en `screen-seccion`** (ver `SECCIONES` en
-`renderSeccionCards()`) — si se sacan de ahí sin dejar otro camino, quedan
+(sesion.js) saltea `screen-negocio` de una, **Ideas y Mantenimiento
+necesitan su propio acceso directo en `screen-seccion`** (ver `SECCIONES`
+en `renderSeccionCards()`, navegacion.js) — si se sacan de ahí sin dejar
+otro camino, quedan
 con código andando pero inalcanzables desde la UI (pasó una vez con Ideas,
 quedó documentado para no repetirlo).
 
@@ -198,13 +211,13 @@ en Excel/Sheets), armado en el navegador con un `Blob`, sin librerías.
 ```bash
 npx serve .
 # o, si no hay Node instalado:
-python -m http.server 5177
+python -m http.server 5179
 ```
 
 ## Configurar Firebase (proyecto propio, separado del de Recreo & Pablo)
 
 La config de Firebase de este negocio (proyecto `controlinterno-659c4`) ya
-viene incluida en el código (`DEFAULT_FIREBASE_CONFIG` en app.js) — por eso
+viene incluida en el código (`DEFAULT_FIREBASE_CONFIG` en state.js) — por eso
 al abrir la app por primera vez en un dispositivo nuevo no hay que pegar
 nada, `attemptReconnect()` la usa sola y entra directo. La pantalla de
 pegar `firebaseConfig` (`screen-setup`) sigue existiendo como respaldo
