@@ -1,0 +1,36 @@
+# Solo headers: no se toca build/publish acá, eso queda como está
+# configurado en el panel de Netlify.
+#
+# Por qué: service-worker.js usa estrategia "red primero" (ver el archivo)
+# para que un deploy nuevo se vea solo, sin versión pegada. Pero si Netlify
+# o el navegador cachean agresivamente el propio service worker, el HTML o
+# los módulos JS/CSS, esa promesa se rompe igual. Por eso van sin caché acá,
+# no por costumbre.
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/service-worker.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
