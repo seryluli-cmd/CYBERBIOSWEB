@@ -14,7 +14,7 @@ import { listenIdeas, renderIdeas, toggleVoto, toggleIdeaEstado, deleteIdea, ope
 import { listenReportes, renderReportes, toggleVotoReporte, toggleReporteEstado, deleteReporte, openModalReporte, closeModalReporte, saveReporte } from "./reportes.js";
 import {
   listenGastos, renderGastos, renderGastosAdmin, fotosDeGasto,
-  abrirVisorFotos, visorFotosMover, closeModalVisorFotos, verDetalleGasto, closeModalDetalleGasto,
+  abrirVisorFotos, visorFotosMover, closeModalVisorFotos, wireVisorFotosZoom, verDetalleGasto, closeModalDetalleGasto,
   renderFotosGuardadas, renderPagadorChips, exportGastosCSV, setDefaultFecha,
   resetFotoField, renderFotoStrip, selectFormaPago, registrarEdicionMixto, calcularCampoMixtoFaltante,
   openModal, closeModal, saveGasto, deleteGasto, marcarAbonado
@@ -378,6 +378,7 @@ function wireEvents() {
   $("#modal-visor-fotos").addEventListener("click", (e) => {
     if (e.target.id === "modal-visor-fotos") closeModalVisorFotos();
   });
+  wireVisorFotosZoom();
 
   // Editar y borrar de un cierre ya cargado (delegado, admin)
   $("#facturado-list").addEventListener("click", (e) => {
