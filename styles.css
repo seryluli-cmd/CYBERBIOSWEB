@@ -527,9 +527,6 @@ input:focus, select:focus, textarea:focus {
   font-size: 12.5px;
   color: var(--text-secondary);
 }
-.stat-hero-breakdown { margin-top: 10px; font-size: 13.5px; }
-.stat-hero-breakdown strong { color: var(--text-primary); }
-
 .settlements { display: flex; flex-direction: column; gap: 8px; }
 .settlement-item {
   background: var(--surface-1);
