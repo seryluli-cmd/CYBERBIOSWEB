@@ -522,4 +522,4 @@ async function start() {
   await attemptReconnect();
 }
 
-start();
+start().catch(console.error);

@@ -64,8 +64,8 @@
 }
 
 /* Fuerza el tema oscuro sin importar la preferencia del sistema — lo pone
-   aplicarTema() en app.js cuando la persona elige "Oscuro" a mano en
-   Ajustes (en vez de dejarlo en "Automático"). Mismos valores que el
+   seleccionarTema() en ajustes.js cuando la persona elige "Oscuro" a mano
+   en Ajustes (en vez de dejarlo en "Automático"). Mismos valores que el
    bloque de arriba, pero sin depender de prefers-color-scheme. */
 :root[data-theme="dark"] {
   color-scheme: dark;
