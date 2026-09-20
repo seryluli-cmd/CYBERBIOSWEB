@@ -3,20 +3,19 @@
 // ============================================================
 import {
   $, $$, showToast, showScreen,
-  money, parseMoneyInput, formatMoneyValue, wireMoneyInput,
-  MESES, mesLabel, fechaDeRegistro, fechaLocalISO, fechaLimiteHistorial,
+  wireMoneyInput,
+  fechaLocalISO,
   fechaParaTurno,
-  escapeHtml, conTimeout, compressImage,
-  setSyncOffline
+  compressImage
 } from "./utils.js";
 
 import { listenIdeas, renderIdeas, toggleVoto, toggleIdeaEstado, deleteIdea, openModalIdea, closeModalIdea, saveIdea } from "./ideas.js";
-import { listenReportes, renderReportes, toggleVotoReporte, toggleReporteEstado, deleteReporte, openModalReporte, closeModalReporte, saveReporte } from "./reportes.js";
+import { listenReportes, toggleVotoReporte, toggleReporteEstado, deleteReporte, openModalReporte, closeModalReporte, saveReporte } from "./reportes.js";
 import {
   listenGastos, renderGastos, renderGastosAdmin, fotosDeGasto,
   abrirVisorFotos, visorFotosMover, closeModalVisorFotos, wireVisorFotosZoom, verDetalleGasto, closeModalDetalleGasto,
   renderFotosGuardadas, renderPagadorChips, exportGastosCSV, setDefaultFecha,
-  resetFotoField, renderFotoStrip, selectFormaPago, registrarEdicionMixto, calcularCampoMixtoFaltante,
+  renderFotoStrip, selectFormaPago, registrarEdicionMixto, calcularCampoMixtoFaltante,
   openModal, closeModal, saveGasto, deleteGasto, marcarAbonado
 } from "./gastos.js";
 import {

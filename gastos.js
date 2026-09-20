@@ -2,10 +2,10 @@
 // Gastos — carga, edición, fotos de factura, "Gastos S/Admin", exportar
 // CSV. La pantalla más grande de la app.
 // ============================================================
-import { state, CATEGORIAS_GASTOS_DEFAULT, MAX_FOTOS_GASTO, FOTO_RETENCION_DIAS } from "./state.js";
+import { state, MAX_FOTOS_GASTO, FOTO_RETENCION_DIAS } from "./state.js";
 import {
   $, $$, showToast, escapeHtml, fechaDeRegistro, fechaLocalISO, fechaLimiteHistorial, fechaBaseMes, mesLabel,
-  money, parseMoneyInput, formatMoneyValue, socioInitial, setSyncOffline, conTimeout, csvEscape, downloadCSV
+  money, parseMoneyInput, formatMoneyValue, socioInitial, setSyncOffline, conTimeout, downloadCSV
 } from "./utils.js";
 import { payerColorVar, renderPagadorChipsEn } from "./identidad.js";
 
