@@ -14,9 +14,9 @@ export function gastosDelNegocio() {
 }
 
 // onCambio se llama después de cada snapshot con datos nuevos — hoy
-// dispara renderBalance()/renderResumen(), que todavía viven en app.js (no
-// se movieron en esta etapa). Un callback en vez de importarlas evita una
-// dependencia circular gastos.js↔app.js.
+// dispara renderBalance()/renderResumen() (resumen.js). Un callback en vez
+// de importarlas directo evita una dependencia circular
+// gastos.js↔resumen.js (resumen.js ya importa gastosDelNegocio de acá).
 export function listenGastos(onCambio) {
   const q = state.fbSdk.query(
     state.fbSdk.collection(state.db, "gastos"),
