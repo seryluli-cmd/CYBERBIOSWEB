@@ -88,6 +88,7 @@ export const state = {
   selectedTurno: null, // "mañana"|"tarde"|"noche", o "t1"|"t2" si la fecha elegida es domingo
 
   resumenMesOffset: 0,  // 0 = mes actual, -1 = mes anterior, etc. (Resumen mensual)
+  resumenCategoriasAbiertas: new Set(), // categorías de "Gastos por categoría" con el detalle desplegado — se guarda acá y no en el DOM porque renderResumen() redibuja todo en cada cambio de Firestore y se cerrarían solas
   gastosMesOffset: 0,   // ídem, para la pantalla de Gastos — se reinicia a 0 cada vez que se entra
   facturadoMesOffset: 0, // ídem, para la pantalla de Facturado/Cierre de turno
   gastosAdminMesOffset: 0, // ídem, para la pantalla de Gastos S/Admin

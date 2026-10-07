@@ -177,6 +177,17 @@ para distinguirlos). El total sí entra en Resumen mensual (ya admin-only)
 como cualquier otro gasto. Borrar una categoría no toca los gastos que ya
 la tienen cargada, solo deja de poder elegirse para gastos nuevos.
 
+La sección **"Gastos por categoría"** de Resumen mensual agrupa los gastos
+del mes por `categoria` (los que no tienen caen en "Otros", ver
+`categoriaDe()` en resumen.js). Cada tarjeta es un botón: al tocarla se
+despliega el detalle de los gastos que forman ese monto (fecha, descripción,
+quién pagó, forma de pago e importe, del más reciente al más antiguo; los
+privados con su "🔒 Solo admin" y los pendientes con "⚠️ Falta abonar") —
+solo lectura, editar/borrar sigue siendo desde la pantalla Gastos. Qué
+categorías están desplegadas vive en `state.resumenCategoriasAbiertas`
+(no en el DOM, porque `renderResumen()` redibuja todo en cada cambio de
+Firestore); se vacía al entrar a la sección y se mantiene al cambiar de mes.
+
 ⚠️ **No es una capa de seguridad real** — cualquier dispositivo con la
 `firebaseConfig` puede leer/escribir todo en Firestore sin pasar por el PIN
 de la app. Sirve para identificar quién usa cada celular, no para proteger
