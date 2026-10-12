@@ -330,12 +330,6 @@ input:focus, select:focus, textarea:focus {
 .negocio-wrap h1 { font-size: 21px; margin: 16px 0 4px; }
 .negocio-wrap > .muted { margin-bottom: 24px; }
 
-/* Pantalla "Elegir sección": sin ícono arriba (se sacó para ganar lugar
-   para las tarjetas), así que no necesita el padding superior pensado
-   para acomodarlo como en ¿Quién sos? / Elegir negocio. */
-#screen-seccion .negocio-wrap { padding-top: 24px; }
-#screen-seccion .negocio-wrap h1 { margin-top: 0; }
-
 .back-link {
   display: inline-block;
   border: none;
@@ -384,6 +378,95 @@ input:focus, select:focus, textarea:focus {
   color: inherit;
   text-align: left;
 }
+
+/* ===== Pantalla "Elegir sección": un teclado =====
+   Cada sección es una tecla: pared dura abajo (sombra sin desenfoque) y al
+   tocarla baja de verdad — es la única animación de la pantalla. La
+   jerarquía va por tamaño: las dos de todos los días (Gastos y Cierre de
+   Turno) son teclas grandes y el resto, largas. El color de marca aparece
+   una sola vez, en la tecla "viva" (Cierre de Turno).
+   Los colores van en :root con las mismas tres variantes de tema que el
+   resto de la app (claro / oscuro automático / oscuro elegido a mano). */
+:root {
+  --deck: #ebeae4;
+  --tecla-cara: var(--surface-1);
+  --tecla-pared: #9b9a8e;
+  --tecla-viva-tinta: #fff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    --deck: #141415;
+    --tecla-cara: #2a2a2d;
+    --tecla-pared: #050506;
+    --tecla-viva-tinta: #0d0d0d;
+  }
+}
+:root[data-theme="dark"] {
+  --deck: #141415;
+  --tecla-cara: #2a2a2d;
+  --tecla-pared: #050506;
+  --tecla-viva-tinta: #0d0d0d;
+}
+
+/* La base del teclado cubre toda la pantalla, también la franja segura de
+   arriba (el body tiene padding-top), por eso se pinta en html y body. */
+:root:has(#screen-seccion.active), body:has(#screen-seccion.active) { background: var(--deck); }
+
+.seccion-wrap {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 12px 20px calc(44px + var(--safe-bottom));
+}
+.seccion-barra { display: flex; align-items: center; min-height: 44px; }
+.seccion-wrap h1 { margin: 14px 0 4px; font-size: 34px; line-height: 1.05; font-weight: 800; letter-spacing: 0.01em; }
+.seccion-lema { margin: 0 0 30px; font-size: 15px; color: var(--text-secondary); }
+
+.teclas { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 14px; }
+
+.tecla {
+  display: flex;
+  gap: 14px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  color: var(--tinta, var(--text-primary));
+  background: var(--cara, var(--tecla-cara));
+  border: 0;
+  border-radius: 14px;
+  box-shadow: 0 4px 0 var(--pared, var(--tecla-pared));
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 70ms ease-out, box-shadow 70ms ease-out;
+}
+.tecla:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--pared, var(--tecla-pared)); }
+.tecla:focus-visible { outline: 3px solid var(--series-1); outline-offset: 4px; }
+
+.tecla-grande { flex-direction: column; justify-content: space-between; min-height: 142px; padding: 16px; border-radius: 20px; }
+.tecla-larga { grid-column: 1 / -1; align-items: center; min-height: 68px; padding: 12px 16px; }
+.tecla-viva {
+  --cara: var(--biz-color, var(--series-1));
+  --pared: color-mix(in srgb, var(--biz-color, var(--series-1)) 55%, #000);
+  --tinta: var(--tecla-viva-tinta);
+  --tinta-suave: color-mix(in srgb, var(--tecla-viva-tinta) 92%, transparent);
+}
+
+.tecla-icono { display: block; width: 28px; height: 28px; flex: none; }
+.tecla svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.tecla-texto { display: block; min-width: 0; }
+.tecla-nombre { display: block; font-size: 20px; font-weight: 800; line-height: 1.12; overflow-wrap: anywhere; }
+.tecla-larga .tecla-nombre { font-size: 16.5px; font-weight: 700; }
+.tecla-sub { display: block; margin-top: 4px; font-size: 13px; line-height: 1.3; color: var(--tinta-suave, var(--text-secondary)); }
+
+/* Atajo a Ajustes: una tecla chica en la esquina (antes era un círculo de
+   28px, muy chico para el dedo). margin-left:auto la deja a la derecha aunque
+   "Cambiar negocio" esté oculto, que es lo que pasa con un solo negocio. */
+.tecla-ajustes { width: 44px; height: 44px; margin-left: auto; align-items: center; justify-content: center; border-radius: 12px; }
+.tecla-ajustes svg { width: 22px; height: 22px; }
+
+@media (prefers-reduced-motion: reduce) { .tecla { transition: none; } }
 
 /* ===== App shell ===== */
 #screen-app.active { display: flex; flex-direction: column; height: 100vh; }
@@ -642,16 +725,6 @@ input:focus, select:focus, textarea:focus {
   line-height: 1;
 }
 .fab:active { opacity: 0.9; }
-
-#btn-ajustes-atajo {
-  top: calc(10px + var(--safe-top));
-  bottom: auto;
-  width: 28px; height: 28px;
-  font-size: 14px;
-  background: #fff;
-  color: var(--text-primary);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
 
 /* ===== Modal ===== */
 .modal-overlay {

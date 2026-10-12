@@ -222,6 +222,15 @@ otro camino, quedan
 con código andando pero inalcanzables desde la UI (pasó una vez con Ideas,
 quedó documentado para no repetirlo).
 
+**`screen-seccion` es un "teclado"** (rediseño del 2026-10-11): cada entrada
+de `SECCIONES` se dibuja como una tecla (`.tecla` en styles.css) con pared
+dura abajo que baja al tocarla. `grande: true` la hace tecla grande (Gastos y
+Cierre de Turno, las de todos los días) y `viva: true` le da el color de marca
+(solo una, Cierre de Turno). Para sumar una sección nueva hay que agregar su
+entrada en `SECCIONES` **y** su ícono de línea (SVG 24×24) en `ICONOS_SECCION`,
+ambos en navegacion.js — ya no se usan emojis ahí. Los colores de las teclas
+(`--deck`, `--tecla-*`) viven en `:root` con las tres variantes de tema.
+
 ## Exportar datos (CSV)
 
 Ajustes → "Exportar datos" baja gastos y facturación como `.csv` (se abre

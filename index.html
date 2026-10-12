@@ -234,13 +234,17 @@
 
   <!-- ===== PANTALLA: ELEGIR SECCIÓN (Gastos / Facturado) ===== -->
   <div id="screen-seccion" class="screen">
-    <div class="negocio-wrap">
-      <button id="btn-back-to-negocio" class="back-link" aria-label="Volver">← Cambiar negocio</button>
+    <div class="seccion-wrap">
+      <div class="seccion-barra">
+        <button id="btn-back-to-negocio" class="back-link" aria-label="Volver">← Cambiar negocio</button>
+        <button id="btn-ajustes-atajo" class="tecla tecla-ajustes" aria-label="Ajustes">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></svg>
+        </button>
+      </div>
       <h1 id="seccion-negocio-nombre">CYBERBIOS</h1>
-      <p class="muted">Haz que tu presencia se note.</p>
-      <div id="seccion-cards" class="negocio-cards"></div>
+      <p class="seccion-lema">Haz que tu presencia se note.</p>
+      <div id="seccion-cards" class="teclas"></div>
     </div>
-    <button id="btn-ajustes-atajo" class="fab" aria-label="Ajustes">⚙️</button>
   </div>
 
   <!-- ===== APP PRINCIPAL (Gastos / Balance / Ajustes) ===== -->
