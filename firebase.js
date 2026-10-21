@@ -135,7 +135,7 @@ export async function connectAndBoot(config, namesFromInput, colabFromInput, onB
     }
     state.socios = namesFromInput.map(n => n.trim());
     state.colaboradores = (colabFromInput || []).map(n => n.trim()).filter(Boolean);
-    state.admins = [];
+    state.admins = state.socios.slice(); // el dueño siempre es admin, igual que en setup.js
     state.pins = {};
     state.claveMaestraAdmin = "llavez";
     state.categoriasGastos = CATEGORIAS_GASTOS_DEFAULT;

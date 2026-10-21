@@ -10,6 +10,15 @@ export function allPagadores() {
   return state.socios.concat(state.colaboradores);
 }
 
+// El dueño (socios) es admin siempre, esté o no en `admins` — si ese campo
+// de Firestore se vacía, nadie más que el dueño podría volver a hacerlo
+// admin desde la app (el botón de Ajustes solo lo ve un admin). Pasó una
+// vez: `admins` quedó en [] y se le escondieron Resumen mensual y Gastos
+// S/Admin. Los colaboradores sí dependen solo de `admins`.
+export function esAdminNombre(nombre) {
+  return state.socios.includes(nombre) || state.admins.includes(nombre);
+}
+
 // Chips de "¿quién es?" — mismo componente en 2 modales (Nuevo gasto y
 // Nuevo cierre), solo cambia dónde se guarda el nombre elegido (ver
 // onSeleccionar) y en qué wrap del DOM se dibuja.

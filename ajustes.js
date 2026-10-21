@@ -4,7 +4,7 @@
 // ============================================================
 import { state, LS_CONFIG_KEY, LS_SOCIOS_CACHE, LS_COLAB_CACHE, LS_THEME_KEY } from "./state.js";
 import { $, $$, showToast, escapeHtml, socioColorVar } from "./utils.js";
-import { allPagadores, payerColorVar } from "./identidad.js";
+import { allPagadores, payerColorVar, esAdminNombre } from "./identidad.js";
 
 // Historial de logeos: cuenta cuántas veces se identificó cada persona
 // (tanto al tipear el PIN de nuevo como cuando el celular ya la recordaba
@@ -52,7 +52,7 @@ export function renderAjustesSocios() {
   state.socios.forEach((nombre, idx) => {
     const row = document.createElement("div");
     row.className = "ajustes-socio-row";
-    const badge = state.admins.includes(nombre) ? `<span class="admin-badge">Admin</span>` : "";
+    const badge = esAdminNombre(nombre) ? `<span class="admin-badge">Admin</span>` : "";
     row.innerHTML = `<span class="socio-dot" style="background:${socioColorVar(idx)}"></span> ${escapeHtml(nombre)} ${badge}`;
     wrap.appendChild(row);
   });

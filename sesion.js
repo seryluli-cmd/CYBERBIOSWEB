@@ -8,7 +8,7 @@
 // ============================================================
 import { state, LS_USER_KEY, LS_SOCIOS_CACHE, LS_COLAB_CACHE, CATEGORIAS_GASTOS_DEFAULT, NEGOCIOS } from "./state.js";
 import { $, escapeHtml, showScreen, socioInitial, setSyncOffline } from "./utils.js";
-import { allPagadores, payerColorVar } from "./identidad.js";
+import { allPagadores, payerColorVar, esAdminNombre } from "./identidad.js";
 import { normalizarCategoriasGastos } from "./firebase.js";
 import { selectNegocio } from "./navegacion.js";
 import { registrarLogin, renderAjustesSocios } from "./ajustes.js";
@@ -41,7 +41,7 @@ function goToNegocioOrHome() {
 
 export function setUsuarioActual(nombre) {
   state.usuarioActual = nombre;
-  state.esAdmin = state.admins.includes(nombre);
+  state.esAdmin = esAdminNombre(nombre);
   localStorage.setItem(LS_USER_KEY, nombre);
   registrarLogin(nombre);
   renderAjustesSocios();
@@ -88,7 +88,7 @@ function openPinModal(nombre) {
   // en un celular nuevo — no a colaboradores sin admin, y no de nuevo una
   // vez que ya tiene PIN (ahí entra por "verify" con su PIN de siempre).
   // Si no hay clave maestra configurada, no se pide (ver claveMaestraAdmin).
-  const requiereClaveMaestra = state.pinFlowMode === "create" && state.admins.includes(nombre) && !!state.claveMaestraAdmin;
+  const requiereClaveMaestra = state.pinFlowMode === "create" && esAdminNombre(nombre) && !!state.claveMaestraAdmin;
   $("#pin-field-clave-maestra").classList.toggle("hidden", !requiereClaveMaestra);
 
   if (state.pinFlowMode === "create") {
@@ -137,7 +137,7 @@ export async function confirmPinModal() {
   }
 
   // pinFlowMode === "create"
-  const requiereClaveMaestra = state.admins.includes(state.pinFlowNombre) && !!state.claveMaestraAdmin;
+  const requiereClaveMaestra = esAdminNombre(state.pinFlowNombre) && !!state.claveMaestraAdmin;
   if (requiereClaveMaestra && $("#pin-input-clave-maestra").value !== state.claveMaestraAdmin) {
     errEl.textContent = "Clave maestra incorrecta. Pedísela a otro admin.";
     errEl.classList.remove("hidden");
@@ -201,7 +201,7 @@ export function listenSocios() {
       }
       localStorage.setItem(LS_SOCIOS_CACHE, JSON.stringify(state.socios));
       localStorage.setItem(LS_COLAB_CACHE, JSON.stringify(state.colaboradores));
-      state.esAdmin = state.usuarioActual ? state.admins.includes(state.usuarioActual) : false;
+      state.esAdmin = state.usuarioActual ? esAdminNombre(state.usuarioActual) : false;
       renderPagadorChips();
       renderPagadorChipsFacturado();
       renderAjustesSocios();

@@ -81,7 +81,12 @@ los event listeners de la UI, pero ya no tiene la lógica de cada pantalla.
   `{ socios: [string], colaboradores: string[], admins: string[], pins: { [nombre]: "1234" }, categoriasGastos: string[] }`.
   `socios` tiene un único nombre (vos, el dueño) y `admins` siempre lo
   incluye — no hay checkbox de admin en el setup porque no hace falta
-  elegir. El campo `colaboradores` se puede editar después desde Ajustes.
+  elegir. Igual, el código no depende de eso: `esAdminNombre()`
+  (identidad.js) trata a todo nombre de `socios` como admin aunque falte
+  en `admins` (pasó una vez que `admins` quedó vacío y al dueño se le
+  escondieron Resumen mensual y Gastos S/Admin, sin forma de arreglarlo
+  desde la app). Para los colaboradores, ser admin sí depende solo de
+  `admins`. El campo `colaboradores` se puede editar después desde Ajustes.
 - **`gastos`** — `{ importe, descripcion, categoria, pagadoPor, negocio, fecha, creadoEn, soloAdmin?, fotoUrl?, fotoPath? }`.
   `categoria` es el nombre de una de las categorías editables desde Ajustes
   → "Categorías de gastos" (ver `categoriasGastos` arriba) — ya no son
