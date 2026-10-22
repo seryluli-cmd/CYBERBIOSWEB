@@ -45,7 +45,7 @@ export function selectNegocio(id) {
   $("#facturado-icon-badge").textContent = biz.emoji;
   $("#facturado-icon-badge").style.background = biz.color;
 
-  // Pantalla "Comparar meses" — badge del topbar
+  // Pantalla "Análisis avanzado" — badge del topbar
   $("#comparar-icon-badge").textContent = biz.emoji;
   $("#comparar-icon-badge").style.background = biz.color;
 
@@ -88,7 +88,7 @@ function renderSeccionCards(biz) {
     { id: "gastos", nombre: "Gastos", sub: "Cargar y ver los gastos del mes", grande: true },
     { id: "facturado", nombre: "Cierre de Turno", sub: "Anotar efectivo y Digital", grande: true, viva: true },
     { id: "resumen", nombre: "Resumen mensual", sub: "Ver los totales de cada mes", soloAdmin: true },
-    { id: "comparar", nombre: "Comparar meses", sub: "Mes contra mes y por tramos: días 1–10, 11–20 y 21–fin", soloAdmin: true },
+    { id: "comparar", nombre: "Análisis avanzado", sub: "Meses, tramos del mes y rendimiento del equipo", soloAdmin: true },
     { id: "gastosadmin", nombre: "Gastos S/Admin", sub: "Alquiler y otros gastos privados", soloAdmin: true },
     { id: "ideas", nombre: "Caja de IDEAS", sub: "Aportar ideas para mejorar el negocio y el entorno laboral" },
     { id: "mantenimiento", nombre: "Reportes de Mantenimiento", sub: "Reportar roturas o cosas para arreglar" }
