@@ -88,7 +88,7 @@ function renderSeccionCards(biz) {
     { id: "gastos", nombre: "Gastos", sub: "Cargar y ver los gastos del mes", grande: true },
     { id: "facturado", nombre: "Cierre de Turno", sub: "Anotar efectivo y Digital", grande: true, viva: true },
     { id: "resumen", nombre: "Resumen mensual", sub: "Ver los totales de cada mes", soloAdmin: true },
-    { id: "comparar", nombre: "Análisis avanzado", sub: "Meses, tramos del mes y rendimiento del equipo", soloAdmin: true },
+    { id: "comparar", nombre: "Análisis avanzado", sub: "Meses, tramos del mes y rendimiento por empleado", soloAdmin: true },
     { id: "gastosadmin", nombre: "Gastos S/Admin", sub: "Alquiler y otros gastos privados", soloAdmin: true },
     { id: "ideas", nombre: "Caja de IDEAS", sub: "Aportar ideas para mejorar el negocio y el entorno laboral" },
     { id: "mantenimiento", nombre: "Reportes de Mantenimiento", sub: "Reportar roturas o cosas para arreglar" }
