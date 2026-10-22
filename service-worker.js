@@ -18,6 +18,7 @@ const APP_SHELL = [
   "./ideas.js",
   "./navegacion.js",
   "./reportes.js",
+  "./comparar.js",
   "./resumen.js",
   "./sesion.js",
   "./setup.js",

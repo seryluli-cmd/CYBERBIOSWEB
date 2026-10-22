@@ -6,7 +6,8 @@ import { state, NEGOCIOS } from "./state.js";
 import { $, $$, escapeHtml, showScreen } from "./utils.js";
 import { renderGastos, renderGastosAdmin } from "./gastos.js";
 import { renderFacturado } from "./facturado.js";
-import { renderResumen, renderBalance, renderComparar } from "./resumen.js";
+import { renderResumen, renderBalance } from "./resumen.js";
+import { abrirComparar } from "./comparar.js";
 import { renderIdeas } from "./ideas.js";
 import { renderReportes } from "./reportes.js";
 
@@ -87,7 +88,7 @@ function renderSeccionCards(biz) {
     { id: "gastos", nombre: "Gastos", sub: "Cargar y ver los gastos del mes", grande: true },
     { id: "facturado", nombre: "Cierre de Turno", sub: "Anotar efectivo y Digital", grande: true, viva: true },
     { id: "resumen", nombre: "Resumen mensual", sub: "Ver los totales de cada mes", soloAdmin: true },
-    { id: "comparar", nombre: "Comparar meses", sub: "Efectivo, Digital, total y gastos mes a mes", soloAdmin: true },
+    { id: "comparar", nombre: "Comparar meses", sub: "Mes contra mes y por tramos: días 1–10, 11–20 y 21–fin", soloAdmin: true },
     { id: "gastosadmin", nombre: "Gastos S/Admin", sub: "Alquiler y otros gastos privados", soloAdmin: true },
     { id: "ideas", nombre: "Caja de IDEAS", sub: "Aportar ideas para mejorar el negocio y el entorno laboral" },
     { id: "mantenimiento", nombre: "Reportes de Mantenimiento", sub: "Reportar roturas o cosas para arreglar" }
@@ -131,8 +132,8 @@ function selectSeccion(id) {
     showScreen("screen-resumen");
   } else if (id === "comparar") {
     if (!state.esAdmin) return;
-    renderComparar();
     showScreen("screen-comparar");
+    abrirComparar();
   } else if (id === "gastosadmin") {
     state.gastosAdminMesOffset = 0;
     renderGastosAdmin();
