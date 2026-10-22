@@ -23,7 +23,7 @@ import {
   exportFacturacionCSV, resetFotoFieldFact, actualizarChipsTurnoPorFecha, registrarEdicionManualFacturado,
   openModalFacturado, closeModalFacturado, saveCierre, deleteCierre
 } from "./facturado.js";
-import { renderResumen, renderBalance, renderComparar } from "./resumen.js";
+import { renderResumen, renderBalance } from "./resumen.js";
 import {
   cargarHistorialLogins, renderAjustesSocios, agregarCategoriaDesdeAjustes, quitarCategoria,
   agregarColaboradorDesdeAjustes, quitarColaborador, toggleAdminColaborador, guardarClaveMaestra,
@@ -52,10 +52,10 @@ function bootApp() {
   renderNegocioCards();
   listenGastos(() => {
     renderBalance();
-    if (state.negocioActual) { renderResumen(); renderComparar(); }
+    if (state.negocioActual) renderResumen();
   });
   listenFacturacion(() => {
-    if (state.negocioActual) { renderResumen(); renderComparar(); }
+    if (state.negocioActual) renderResumen();
   });
   listenIdeas();
   listenReportes();
@@ -230,7 +230,6 @@ function wireEvents() {
   $("#btn-back-to-seccion-fact").addEventListener("click", volverASeccion);
   $("#btn-back-to-negocio").addEventListener("click", () => showScreen("screen-negocio"));
   $("#btn-back-to-seccion-resumen").addEventListener("click", volverASeccion);
-  $("#btn-back-to-seccion-comparar").addEventListener("click", volverASeccion);
   $("#btn-mes-anterior").addEventListener("click", () => {
     state.resumenMesOffset--;
     renderResumen();
