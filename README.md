@@ -65,7 +65,7 @@ los event listeners de la UI, pero ya no tiene la lógica de cada pantalla.
 | [navegacion.js](navegacion.js) | Tarjetas de negocio/sección y cambio de pestañas dentro de `screen-app`. |
 | [setup.js](setup.js) | Pantalla de configuración inicial (pegar `firebaseConfig` a mano). |
 | [gastos.js](gastos.js) | Pantalla Gastos y Gastos S/Admin: listado, modal, fotos, chips de pagador, CSV. |
-| [facturado.js](facturado.js) | Pantalla Facturado / Cierre de Turno, incluida la detección de cajas faltantes. |
+| [facturado.js](facturado.js) | Pantalla Facturado / Cierre de Turno, incluida la detección de cajas faltantes y el detalle de un cierre al tocarlo (`openDetalleCierre`: tal cual la pantalla Cierre de Turno de CYBERCONTROL, con el desglose que manda ese programa). |
 | [resumen.js](resumen.js) | Resumen mensual y Balance entre socios. |
 | [comparar.js](comparar.js) | Estadísticas (solo admin), tres vistas: "Por mes" (Efectivo, Digital, suma y Gastos de cada mes), "Por tramo" (días 1–10, 11–20 y 21–fin: gráfico de columnas, total o promedio por día, comparación con el mes anterior y tabla) y "Por empleado" (cuánto subió o bajó el promedio por turno de cada colaborador contra el mes anterior, con índice contra el promedio del equipo en los mismos turnos; hace falta un mínimo de 4 turnos en ambos meses; debajo del podio de empleados va el podio de turnos: cuál de mañana, tarde y noche subió más su promedio, calculado sobre los cierres de todo el negocio; los turnos de domingo, que son otros, no entran). Gráficos en SVG/HTML a mano, sin librerías. |
 | [checklist.js](checklist.js) | Fábrica compartida por Ideas y Reportes de Mantenimiento (`crearModuloChecklist`). |
@@ -95,7 +95,25 @@ los event listeners de la UI, pero ya no tiene la lógica de cada pantalla.
   `soloAdmin` sí es lo que marca un gasto individual como privado
   (checkbox "🔒 Gasto Admin" en el modal) — ver "Identidad y permisos"
   abajo.
-- **`facturacion`** — `{ importe, turno, registradoPor, negocio, fecha, creadoEn }`.
+- **`facturacion`** — `{ importe, efectivo, digital, turno, registradoPor, negocio, fecha, creadoEn }`.
+  **Desde el 2026-10-26 los cierres también los manda solo CYBERCONTROL**
+  (el programa Python del mostrador, repo `CYBERCONTROL`,
+  `repositories/envio_pwa_repo.py`): entra a este Firestore con el mismo
+  login anónimo que un celular y escribe un documento por Cierre de Turno
+  (id `cybercontrol-<nº>-<fecha>`) con los mismos campos de arriba más
+  `origen: "cybercontrol"`, `cierreId`, `caja` (el número de caja),
+  `forzoso`, `enAusencia`, `cerradoPor` y `detalle`: el resumen tal cual la
+  pantalla Cierre de Turno de ese programa — `{ cambioFijo, aRetirar,
+  negocios: [{ clave, nombre, efectivo, digital }], reservasPorTipo: [{ clase,
+  cantidad, monto }], desde, hasta }`. `registradoPor` es el NOMBRE de la
+  responsable de la caja, escrito igual que acá (por eso los usuarios tienen
+  que llamarse igual en las dos apps; el PIN no participa). La lista marca
+  esos cierres con 🖥️ y, al tocar cualquier cierre, se abre su detalle
+  (`openDetalleCierre`): con `detalle`, A RETIRAR, TOTAL, la tabla por negocio
+  con efectivo y digital, Cobrado y Cambio Fijo, y abajo cómo se cerró (en rojo
+  si fue forzoso o en ausencia); uno cargado a mano muestra solo efectivo,
+  digital y total. Editar o borrar acá un cierre de CYBERCONTROL no avisa a
+  ese programa (desde su Control de Cierres se puede volver a mandar).
   `turno` es `"mañana"` | `"tarde"` | `"noche"` de lunes a sábado — pero
   **el domingo es distinto: solo 2 turnos de 12hs, `"t1"` (06-18) y `"t2"`
   (18-06)**, en vez de los 3 de siempre. `turnosDelDia(fecha)` en utils.js

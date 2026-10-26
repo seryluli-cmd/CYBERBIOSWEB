@@ -21,7 +21,7 @@ import {
 import {
   listenFacturacion, renderFacturado, renderPagadorChipsFacturado,
   exportFacturacionCSV, resetFotoFieldFact, actualizarChipsTurnoPorFecha, registrarEdicionManualFacturado,
-  openModalFacturado, closeModalFacturado, saveCierre, deleteCierre
+  openModalFacturado, closeModalFacturado, saveCierre, deleteCierre, openDetalleCierre, closeModalDetalleCierre
 } from "./facturado.js";
 import { renderResumen, renderBalance } from "./resumen.js";
 import { renderComparar, initComparar } from "./comparar.js";
@@ -452,7 +452,21 @@ function wireEvents() {
     const delBtn = e.target.closest(".cierre-delete-btn");
     if (delBtn) { deleteCierre(delBtn.dataset.id); return; }
     const cargarBtn = e.target.closest(".btn-cargar-faltante");
-    if (cargarBtn) openModalFacturado(null, { fecha: cargarBtn.dataset.fecha, turno: cargarBtn.dataset.turno });
+    if (cargarBtn) {
+      openModalFacturado(null, { fecha: cargarBtn.dataset.fecha, turno: cargarBtn.dataset.turno });
+      return;
+    }
+    // Tocar la tarjeta de un cierre (fuera de sus botones) abre su detalle, tal
+    // cual el Cierre de Turno de CYBERCONTROL (ver openDetalleCierre).
+    const tarjeta = e.target.closest(".expense-item[data-cierre-id]");
+    if (tarjeta) {
+      const c = state.facturaciones.find(x => x.id === tarjeta.dataset.cierreId);
+      if (c) openDetalleCierre(c);
+    }
+  });
+  $("#btn-cerrar-detalle-cierre").addEventListener("click", closeModalDetalleCierre);
+  $("#modal-detalle-cierre").addEventListener("click", (e) => {
+    if (e.target.id === "modal-detalle-cierre") closeModalDetalleCierre();
   });
 
   // Pantalla "Fotos guardadas" — cada miniatura es una foto puntual de un
