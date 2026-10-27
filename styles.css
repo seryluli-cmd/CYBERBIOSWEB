@@ -818,6 +818,57 @@ input:focus, select:focus, textarea:focus {
 .cmp-seg-sm { margin: 4px 0 16px; }
 .cmp-seg-sm button { min-height: 34px; font-size: 13px; }
 
+/* Riel de Estadísticas: la luz violeta se desliza con un pequeño rebote hasta la
+   vista elegida (--i, lo pone comparar.js) y el titular de abajo cambia al dato
+   principal de esa vista. El violeta es el de marca fijo y no --series-1, que en
+   modo oscuro se aclara y ahí el texto blanco no se leería. */
+.cmp-riel {
+  --n: 4;
+  position: relative; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  padding: 4px; border-radius: 16px;
+  background: color-mix(in srgb, var(--text-primary) 6%, var(--surface-1));
+  border: 1px solid var(--border);
+}
+.cmp-riel-luz {
+  position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / var(--n));
+  border-radius: 12px; pointer-events: none;
+  background: linear-gradient(135deg, #7c3aed, #c026d3);
+  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.45);
+  transform: translateX(calc(var(--i, 0) * 100%));
+  transition: transform 0.38s cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+.cmp-riel button {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  min-height: 54px; padding: 9px 2px 8px; border: 0; border-radius: 12px;
+  background: transparent; color: var(--text-secondary);
+  font: inherit; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; white-space: nowrap; cursor: pointer;
+  transition: color 0.25s;
+}
+.cmp-riel svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.cmp-riel button[aria-pressed="true"] { color: #fff; }
+.cmp-riel button:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+
+.cmp-titular {
+  position: relative; overflow: hidden; display: grid; gap: 3px;
+  margin: 12px 0 18px; padding: 16px 16px 15px; border-radius: 18px; color: #fff;
+  background: linear-gradient(135deg, #3b0f8f, #7c3aed 58%, #c026d3);
+  box-shadow: 0 16px 34px rgba(124, 58, 237, 0.3);
+}
+.cmp-titular::after {
+  content: ""; position: absolute; right: -50px; top: -80px; width: 200px; height: 200px; border-radius: 50%;
+  pointer-events: none; background: radial-gradient(circle, rgba(255, 255, 255, 0.3), transparent 65%);
+}
+.cmp-titular small { font-size: 12.5px; opacity: 0.85; }
+.cmp-titular b { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; overflow-wrap: anywhere; }
+.cmp-titular em { font-style: normal; font-size: 13px; font-weight: 700; opacity: 0.95; }
+.cmp-titular em:empty { display: none; }
+
+@media (max-width: 359px) {
+  .cmp-riel button { font-size: 10px; letter-spacing: 0.02em; }
+  .cmp-titular b { font-size: 26px; }
+}
+@media (prefers-reduced-motion: reduce) { .cmp-riel-luz, .cmp-riel button { transition: none; } }
+
 .cmp-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 16px; padding: 16px 14px 14px; margin-bottom: 14px; }
 .cmp-card-titulo { margin: 0 0 2px; font-size: 15px; font-weight: 700; }
 .cmp-card-sub { margin: 0 0 12px; font-size: 12.5px; color: var(--text-secondary); }
@@ -826,7 +877,7 @@ input:focus, select:focus, textarea:focus {
 .cmp-hero-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
 .cmp-hero-valor { font-size: 38px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; }
 .cmp-hero-frase { margin: 8px 0 16px; font-size: 14px; color: var(--text-secondary); line-height: 1.4; }
-.cmp-cinta { display: flex; gap: 2px; height: 10px; }
+.cmp-cinta { display: flex; gap: 2px; height: 10px; margin-top: 14px; }
 .cmp-cinta span { min-width: 4px; }
 .cmp-cinta span:first-child { border-radius: 5px 0 0 5px; }
 .cmp-cinta span:last-child { border-radius: 0 5px 5px 0; }
@@ -927,6 +978,19 @@ input:focus, select:focus, textarea:focus {
 .cmp-eq-pocos { grid-column: 2 / 4; font-size: 12px; color: var(--text-muted); text-align: right; }
 .cmp-vs-persona { grid-template-columns: 74px 1fr auto; }
 .cmp-vs-persona .cmp-vs-tramo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* "Por turno": el total de cada turno contra el mes anterior. Las barras son las
+   mismas de "Por tramo" (mes elegido en tinta, mes anterior apagado). */
+.cmp-tu-fila { padding: 12px 0; border-top: 1px solid var(--border); }
+.cmp-tu-cab { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.cmp-tu-fila .cmp-vs-barras { margin-top: 8px; }
+.cmp-tu-nom { display: flex; flex-direction: column; min-width: 0; font-size: 14px; }
+.cmp-tu-nom small { font-size: 11.5px; color: var(--text-muted); }
+.cmp-tu-val { display: flex; flex-direction: column; align-items: flex-end; }
+.cmp-tu-val b { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cmp-tu-val .cmp-delta { min-width: 0; font-size: 12.5px; }
+.cmp-tu-suma { border-top-color: var(--baseline); }
+.cmp-tu-suma .cmp-tu-cab { grid-template-columns: minmax(0, 1fr) auto; }
 
 /* "Por empleado": podio de quienes más subieron. Oro, plata y bronce son colores
    de medalla (el puesto); sube o baja sigue yendo con flecha y verde o rojo. */

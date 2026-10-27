@@ -1,7 +1,10 @@
 // ============================================================
-// Estadísticas (solo admin) — tres vistas calculadas sobre los gastos y
-// cierres ya guardados, no tocan ni mueven ningún dato:
+// Estadísticas (solo admin) — cuatro vistas calculadas sobre los gastos y
+// cierres ya guardados, no tocan ni mueven ningún dato. Se eligen en un riel
+// (X MES, X TURNO, X TRAMO, X EMPLEADO) y debajo, una tarjeta con el titular
+// de la vista elegida:
 //   · "Por mes":   un bloque por mes con Efectivo, Digital, suma y Gastos.
+//   · "Por turno": lo facturado en cada turno del mes contra el mes anterior.
 //   · "Por tramo": un mes partido en días 1–10, 11–20 y 21–fin, para ver en
 //     qué parte del mes entra (y sale) la plata.
 //   · "Por empleado": cuánto subió o bajó el promedio por turno de cada
@@ -9,7 +12,7 @@
 //     el podio de turnos: cuál de los turnos subió más su promedio.
 // ============================================================
 import { state } from "./state.js";
-import { $, $$, escapeHtml, fechaBaseMes, fechaDeRegistro, mesLabel, money, TURNOS, TURNO_LABEL } from "./utils.js";
+import { $, $$, escapeHtml, fechaBaseMes, fechaDeRegistro, mesLabel, money, TURNOS, TURNOS_DOMINGO, TURNO_LABEL } from "./utils.js";
 import { payerColorVar } from "./identidad.js";
 import { gastosDelNegocio } from "./gastos.js";
 import { facturacionesDelNegocio } from "./facturado.js";
@@ -64,6 +67,16 @@ function flechaResultado(n) {
   const r = Math.round(n);
   if (r === 0) return `<span class="cmp-flecha">=</span>`;
   return `<span class="cmp-flecha ${r > 0 ? "cmp-sube" : "cmp-baja"}">${r > 0 ? "▲" : "▼"}</span>`;
+}
+
+// Cuánto cambió `a` contra `p` (el mes anterior), en % con flecha. "—" si el mes
+// anterior no tiene nada con qué comparar.
+function deltaHtml(a, p) {
+  if (p <= 0) return `<span class="cmp-delta">—</span>`;
+  const pct = Math.round(((a - p) / p) * 100);
+  return pct === 0
+    ? `<span class="cmp-delta">= 0%</span>`
+    : `<span class="cmp-delta">${flechaResultado(pct)}${Math.abs(pct)}%</span>`;
 }
 
 // ---------- Datos por tramo ----------
@@ -128,22 +141,19 @@ const etiquetaModo = () => ui.modo === "dia" ? "por día" : "del tramo";
 
 // ---------- Vista "Por tramo": resumen ----------
 
+// El tramo que más facturó (en total, o por día según el modo — por día es la
+// comparación justa cuando los tramos tienen distinta cantidad de días). null si
+// el mes todavía no tiene cierres. Lo dice el titular de arriba de la vista.
+function tramoMasFuerte(act) {
+  const candidatos = act.tramos.filter(t => t.contados > 0 && t.total > 0);
+  return candidatos.length ? candidatos.reduce((a, b) => valor(b, "total") > valor(a, "total") ? b : a) : null;
+}
+
 function heroHtml(act) {
   const tr = act.tramos;
   const totalMes = tr.reduce((s, t) => s + t.total, 0);
   const gastosMes = tr.reduce((s, t) => s + t.gastos, 0);
   const resultado = totalMes - gastosMes;
-
-  // Frase de conclusión: el tramo más fuerte (en total, o por día según el
-  // modo — por día es la comparación justa cuando los tramos tienen distinta cantidad de días).
-  const candidatos = tr.filter(t => t.contados > 0 && t.total > 0);
-  let frase = "Todavía no hay cierres cargados este mes.";
-  if (candidatos.length) {
-    const mejor = candidatos.reduce((a, b) => valor(b, "total") > valor(a, "total") ? b : a);
-    frase = ui.modo === "dia"
-      ? `Mejor ritmo: días ${mejor.label}, con ${money(Math.round(valor(mejor, "total")))} por día.`
-      : `El tramo ${mejor.label} concentró el ${Math.round((mejor.total / totalMes) * 100)}% de lo facturado.`;
-  }
 
   const cinta = totalMes > 0
     ? `<div class="cmp-cinta" role="img" aria-label="Reparto de lo facturado por tramo">${
@@ -158,7 +168,6 @@ function heroHtml(act) {
     <section class="cmp-card cmp-hero">
       <div class="cmp-hero-label">Facturado en ${mesLabel(act.base)}</div>
       <div class="cmp-hero-valor">${money(totalMes)}</div>
-      <p class="cmp-hero-frase">${frase}</p>
       ${cinta}
       <div class="cmp-hero-stats">
         <div><span class="cmp-stat-label"><i class="cmp-pt cmp-ga"></i>Gastos</span><b>${money(gastosMes)}</b></div>
@@ -452,25 +461,36 @@ function evolucionEquipo(act, ant) {
 // ---------- Turnos ----------
 
 // Los turnos del negocio, en orden: el id que se guarda en el cierre y su nombre.
-// Único lugar que dice cuáles son; un cierre con otro turno no entra al podio.
+// Son los de lunes a sábado; un cierre con otro turno no entra al podio.
 function turnosDelNegocio() {
   return TURNOS.map(id => ({ id, nombre: TURNO_LABEL[id] }));
+}
+
+// Los mismos más los dos del domingo, que son otros. La vista "Por turno" los
+// suma a todos para que el total de los turnos sea lo facturado en el mes.
+function turnosConDomingo() {
+  return [
+    ...turnosDelNegocio(),
+    ...TURNOS_DOMINGO.map(id => ({ id, nombre: TURNO_LABEL[id], domingo: true }))
+  ];
 }
 
 // Los cierres del mes de todo el negocio agrupados por turno: cuántos hubo
 // (`turnos`, igual que en las personas), cuánto se vendió y el promedio de cada
 // uno. A diferencia de datosEquipo no se limita a lo que cargó el equipo: un
-// turno rinde lo mismo lo cierre quien lo cierre.
-function datosTurnos(offset) {
+// turno rinde lo mismo lo cierre quien lo cierre. `hastaDia` corta el mes en ese
+// día (inclusive): sirve para comparar el mes en curso con el anterior hasta el
+// mismo día, sin poner un mes entero contra uno a medias.
+function datosTurnos(offset, hastaDia = Infinity, lista = turnosDelNegocio()) {
   const base = fechaBaseMes(offset);
   const y = base.getFullYear();
   const m = base.getMonth();
-  const turnos = new Map(turnosDelNegocio().map(t => [t.id, { ...t, turnos: 0, total: 0 }]));
+  const turnos = new Map(lista.map(t => [t.id, { ...t, turnos: 0, total: 0 }]));
   facturacionesDelNegocio().forEach(f => {
     const t = turnos.get(f.turno);
     if (!t) return;
     const d = fechaDeRegistro(f);
-    if (d.getFullYear() !== y || d.getMonth() !== m) return;
+    if (d.getFullYear() !== y || d.getMonth() !== m || d.getDate() > hastaDia) return;
     t.turnos++;
     t.total += Number(f.importe) || 0;
   });
@@ -513,11 +533,16 @@ function podioDe(filas) {
 // Un ícono por turno (sol que sale, sol que baja, luna) en el lugar de la inicial:
 // es lo que deja reconocer de un vistazo cuál es. La clave es el id sin tildes ni
 // eñe ("mañana" → "manana"). Los colores son de identidad, no de estado: el verde
-// y el rojo quedan reservados para lo que sube y lo que baja.
+// y el rojo quedan reservados para lo que sube y lo que baja. Los del domingo
+// (de día y de noche) llevan el sol y la luna en otros colores.
+const SOL = `<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>`;
+const LUNA = `<path d="M20 14.2A8.5 8.5 0 0 1 9.8 4a8.5 8.5 0 1 0 10.2 10.2z"/>`;
 const ICONOS_TURNO = {
-  manana: { color: "#d8901c", trazo: `<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>` },
+  manana: { color: "#d8901c", trazo: SOL },
   tarde: { color: "#e5683a", trazo: `<path d="M6.5 16a5.5 5.5 0 0 1 11 0"/><path d="M3 16h18M8 20h8M12 5v2.5M4.8 8.8l1.8 1.8M19.2 8.8l-1.8 1.8"/>` },
-  noche: { color: "#4f56c9", trazo: `<path d="M20 14.2A8.5 8.5 0 0 1 9.8 4a8.5 8.5 0 1 0 10.2 10.2z"/>` },
+  noche: { color: "#4f56c9", trazo: LUNA },
+  t1: { color: "#13917f", trazo: SOL },
+  t2: { color: "#a3487c", trazo: LUNA },
 };
 
 function turnoAvatarHtml(id, clase = "") {
@@ -721,6 +746,167 @@ function renderEquipo() {
   cont.innerHTML = podioCardHtml(filas, act, ant, PODIO_EMPLEADOS) + turnos + enCurso + equipoVariacionHtml(ant, filas, podioDe(filas).top) + equipoPromedioHtml(act, ant, filas) + equipoTablaHtml(act, ant, filas);
 }
 
+// ---------- Vista "Por turno" ----------
+
+const cierresTxt = (n) => `${n} ${n === 1 ? "cierre" : "cierres"}`;
+
+// Lo facturado en cada turno del mes elegido contra el mes anterior. En el mes en
+// curso los dos se cortan en el día de hoy: poner 26 días contra 30 haría ver una
+// caída que no existe. En un mes ya cerrado se comparan los dos meses enteros.
+// Los turnos del domingo aparecen solo si tuvieron cierres en alguno de los dos.
+function datosPorTurno() {
+  const corte = ui.offset === 0 ? new Date().getDate() : Infinity;
+  const lista = turnosConDomingo();
+  const act = datosTurnos(ui.offset, corte, lista);
+  const ant = datosTurnos(ui.offset - 1, corte, lista);
+  const filas = lista
+    .map(t => ({ ...t, a: act.turnos.get(t.id), p: ant.turnos.get(t.id) }))
+    .filter(f => !f.domingo || f.a.turnos || f.p.turnos);
+  const suma = (k, campo) => filas.reduce((s, f) => s + f[k][campo], 0);
+  return {
+    act, ant, corte, filas,
+    totalAct: suma("a", "total"), totalAnt: suma("p", "total"),
+    cierresAct: suma("a", "turnos"), cierresAnt: suma("p", "turnos")
+  };
+}
+
+const textoCorte = (d) => d.corte === Infinity ? "" : `, hasta el día ${d.corte} en los dos meses`;
+
+function turnoTotalesHtml(d) {
+  const nombreAct = mesLabel(d.act.base);
+  const nombreAnt = mesLabel(d.ant.base);
+  const maxVal = Math.max(1, ...d.filas.flatMap(f => [f.a.total, f.p.total]));
+  const ancho = (v) => Math.max(v > 0 ? 2 : 0, (v / maxVal) * 100);
+  const filas = d.filas.map(f => {
+    const parte = d.totalAct ? Math.round((f.a.total / d.totalAct) * 100) : 0;
+    return `
+      <div class="cmp-tu-fila">
+        <div class="cmp-tu-cab">
+          ${turnoAvatarHtml(f.id, "cmp-av-s")}
+          <div class="cmp-tu-nom"><b>${escapeHtml(f.nombre)}</b><small>${f.domingo ? "Domingos · " : ""}${cierresTxt(f.a.turnos)} · ${parte}% del total</small></div>
+          <div class="cmp-tu-val"><b>${money(Math.round(f.a.total))}</b>${deltaHtml(f.a.total, f.p.total)}</div>
+        </div>
+        <div class="cmp-vs-barras">
+          <div class="cmp-vs-linea"><span class="cmp-vs-barra cmp-vs-act" style="width:${ancho(f.a.total)}%"></span></div>
+          <div class="cmp-vs-linea"><span class="cmp-vs-barra cmp-vs-ant" style="width:${ancho(f.p.total)}%"></span><em>${f.p.total > 0 ? money(Math.round(f.p.total)) : "sin cierres"}</em></div>
+        </div>
+      </div>`;
+  }).join("");
+  const nota = d.totalAnt > 0 ? "" : `<p class="cmp-nota-mes">No hay cierres cargados en ${nombreAnt} para comparar.</p>`;
+  return `
+    <section class="cmp-card">
+      <h3 class="cmp-card-titulo">Total de cada turno</h3>
+      <p class="cmp-card-sub">Facturado en ${nombreAct} contra ${nombreAnt}${textoCorte(d)}</p>
+      <div class="cmp-leyenda">
+        <span><i class="cmp-pt cmp-vs-act"></i>${nombreAct}</span>
+        <span><i class="cmp-pt cmp-vs-ant"></i>${nombreAnt}</span>
+      </div>
+      ${filas}
+      <div class="cmp-tu-fila cmp-tu-suma">
+        <div class="cmp-tu-cab">
+          <div class="cmp-tu-nom"><b>Total de los turnos</b><small>${nombreAnt}: ${money(Math.round(d.totalAnt))}</small></div>
+          <div class="cmp-tu-val"><b>${money(Math.round(d.totalAct))}</b>${deltaHtml(d.totalAct, d.totalAnt)}</div>
+        </div>
+      </div>
+      ${nota}
+    </section>`;
+}
+
+function turnoTablaHtml(d) {
+  const variacion = (a, p) => {
+    if (p <= 0) return "—";
+    const pct = Math.round(((a - p) / p) * 100);
+    return (pct < 0 ? "-" : pct > 0 ? "+" : "") + Math.abs(pct) + "%";
+  };
+  const celdas = (cierresA, a, cierresP, p) => `
+      <td>${cierresA}</td><td>${money(Math.round(a))}</td>
+      <td>${cierresP}</td><td>${money(Math.round(p))}</td>
+      <td>${variacion(a, p)}</td>`;
+  return `
+    <details class="cmp-card cmp-tabla">
+      <summary>Ver los números en tabla</summary>
+      <div class="cmp-tabla-scroll">
+        <table>
+          <caption>Total de cada turno — ${mesLabel(d.act.base)} contra ${mesLabel(d.ant.base)}${textoCorte(d)}</caption>
+          <thead><tr><th scope="col">Turno</th><th scope="col">Cierres</th><th scope="col">Total</th><th scope="col">Cierres mes ant.</th><th scope="col">Total mes ant.</th><th scope="col">Variación</th></tr></thead>
+          <tbody>
+            ${d.filas.map(f => `<tr><th scope="row">${escapeHtml(f.nombre)}</th>${celdas(f.a.turnos, f.a.total, f.p.turnos, f.p.total)}</tr>`).join("")}
+          </tbody>
+          <tfoot><tr><th scope="row">Total</th>${celdas(d.cierresAct, d.totalAct, d.cierresAnt, d.totalAnt)}</tr></tfoot>
+        </table>
+      </div>
+    </details>`;
+}
+
+// ---------- Titular de la vista ----------
+
+// La tarjeta violeta debajo del riel: qué es, el dato grande y una nota. Son las
+// mismas cuentas que la vista muestra debajo, así los números coinciden. Es texto
+// blanco sobre violeta, así que la variación va como texto con flecha, sin los
+// colores de sube y baja.
+
+// "▲ 15%", "▼ 3%" o "= 0%".
+function flechaTexto(pct) {
+  const r = Math.round(pct);
+  return r === 0 ? "= 0%" : `${r > 0 ? "▲" : "▼"} ${Math.abs(r)}%`;
+}
+
+// "▲ 15% contra Septiembre 2026"; vacío si el mes anterior no tiene con qué comparar.
+function contraTexto(a, p, base) {
+  return p > 0 ? `${flechaTexto(((a - p) / p) * 100)} contra ${mesLabel(base)}` : "";
+}
+
+// "Por mes" lista todos los meses sin elegir uno: el titular es el mes en curso,
+// contra el anterior entero, igual que la variación de su bloque en la lista.
+function titularMes() {
+  const act = datosTramos(0);
+  const ant = datosTramos(-1);
+  const total = act.tramos.reduce((s, t) => s + t.total, 0);
+  const previo = ant.tramos.reduce((s, t) => s + t.total, 0);
+  const mes = mesLabel(act.base);
+  if (!total) return [`Facturado en ${mes}`, "Sin cierres", ""];
+  const nota = previo > 0 ? `${contraTexto(total, previo, ant.base)} completo` : `Sin cierres en ${mesLabel(ant.base)} para comparar`;
+  return [`Facturado en ${mes} hasta hoy`, money(total), nota];
+}
+
+function titularTurno() {
+  const d = datosPorTurno();
+  const titulo = `Turno que más facturó en ${mesLabel(d.act.base)}`;
+  const mejor = d.filas.reduce((a, b) => b.a.total > a.a.total ? b : a);
+  if (!mejor.a.total) return [titulo, "Sin cierres", ""];
+  const contra = contraTexto(mejor.a.total, mejor.p.total, d.ant.base);
+  return [titulo, mejor.nombre, money(Math.round(mejor.a.total)) + (contra ? `, ${contra}` : "")];
+}
+
+function titularTramo() {
+  const act = datosTramos(ui.offset);
+  const mes = mesLabel(act.base);
+  const mejor = tramoMasFuerte(act);
+  if (!mejor) return [`Tramo más fuerte de ${mes}`, "Sin cierres", ""];
+  if (ui.modo === "dia") return [`Mejor ritmo de ${mes}`, `Días ${mejor.label}`, `${money(Math.round(valor(mejor, "total")))} por día`];
+  const totalMes = act.tramos.reduce((s, t) => s + t.total, 0);
+  return [`Tramo más fuerte de ${mes}`, `Días ${mejor.label}`, `${Math.round((mejor.total / totalMes) * 100)}% de lo facturado`];
+}
+
+function titularEquipo() {
+  const act = datosEquipo(ui.offset);
+  const ant = datosEquipo(ui.offset - 1);
+  const mes = mesLabel(act.base);
+  if (!act.hayEquipo) return [`Quién más subió en ${mes}`, "Sin equipo", ""];
+  const { modo, top } = podioDe(evolucionEquipo(act, ant));
+  if (!top.length) return [`Quién más subió en ${mes}`, "Sin comparación", `Hacen falta ${MIN_TURNOS} turnos en los dos meses`];
+  return [`${modo === "sube" ? "Quién más subió" : "Quién bajó menos"} en ${mes}`, top[0].nombre, `${flechaTexto(top[0].variacion)} su promedio por turno`];
+}
+
+const TITULARES = { mes: titularMes, turno: titularTurno, tramo: titularTramo, equipo: titularEquipo };
+
+function renderTitular() {
+  const [sub, dato, nota] = TITULARES[ui.vista]();
+  $("#cmp-titular-sub").textContent = sub;
+  $("#cmp-titular-dato").textContent = dato;
+  $("#cmp-titular-nota").textContent = nota;
+}
+
 // ---------- Render ----------
 
 function actualizarNavMes(base) {
@@ -742,6 +928,17 @@ function renderTramo() {
   }
   cont.innerHTML = heroHtml(act) + graficoHtml(act) + contraAnteriorHtml(act, ant) + tablaHtml(act);
   conectarTip(act);
+}
+
+function renderTurno() {
+  const d = datosPorTurno();
+  actualizarNavMes(d.act.base);
+  const cont = $("#cmp-turno-contenido");
+  if (!d.cierresAct) {
+    cont.innerHTML = `<div class="cmp-card"><p class="cmp-vacio-chico">No hay cierres de turno cargados en ${mesLabel(d.act.base)}.</p></div>`;
+    return;
+  }
+  cont.innerHTML = turnoTotalesHtml(d) + turnoTablaHtml(d);
 }
 
 // Variación porcentual contra el mes anterior, como texto corto con flecha.
@@ -811,14 +1008,22 @@ export function renderComparar() {
   const pantalla = $("#screen-comparar");
   if (!pantalla || !state.esAdmin || !pantalla.classList.contains("active")) return;
 
-  $$("#cmp-vista button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.vista === ui.vista)));
+  // La luz del riel se desliza hasta la vista elegida: --i es su posición.
+  $$("#cmp-vista button").forEach((b, i) => {
+    const elegida = b.dataset.vista === ui.vista;
+    b.setAttribute("aria-pressed", String(elegida));
+    if (elegida) $("#cmp-vista").style.setProperty("--i", i);
+  });
   $("#cmp-vista-mes").classList.toggle("hidden", ui.vista !== "mes");
   $("#cmp-nav").classList.toggle("hidden", ui.vista === "mes");
+  $("#cmp-vista-turno").classList.toggle("hidden", ui.vista !== "turno");
   $("#cmp-vista-tramo").classList.toggle("hidden", ui.vista !== "tramo");
   $("#cmp-vista-equipo").classList.toggle("hidden", ui.vista !== "equipo");
   if (ui.vista === "mes") renderMeses();
+  else if (ui.vista === "turno") renderTurno();
   else if (ui.vista === "tramo") renderTramo();
   else renderEquipo();
+  renderTitular();
   ui.animar = false;
 }
 

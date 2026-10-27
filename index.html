@@ -650,10 +650,30 @@
     </header>
 
     <section class="tab active">
-      <div class="cmp-seg" id="cmp-vista" role="group" aria-label="Tipo de comparación">
-        <button type="button" data-vista="mes" aria-pressed="true">Por mes</button>
-        <button type="button" data-vista="tramo" aria-pressed="false">Por tramo</button>
-        <button type="button" data-vista="equipo" aria-pressed="false">Por empleado</button>
+      <!-- Riel: la luz se desliza hasta la vista elegida; debajo, su titular -->
+      <div class="cmp-riel" id="cmp-vista" role="group" aria-label="Tipo de comparación">
+        <span class="cmp-riel-luz" aria-hidden="true"></span>
+        <button type="button" data-vista="mes" aria-pressed="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+          <span>X MES</span>
+        </button>
+        <button type="button" data-vista="turno" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>
+          <span>X TURNO</span>
+        </button>
+        <button type="button" data-vista="tramo" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="4.5" height="9" rx="1"/><rect x="9.75" y="4" width="4.5" height="16" rx="1"/><rect x="16.5" y="13" width="4.5" height="7" rx="1"/></svg>
+          <span>X TRAMO</span>
+        </button>
+        <button type="button" data-vista="equipo" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5.5 5"/></svg>
+          <span>X EMPLEADO</span>
+        </button>
+      </div>
+      <div class="cmp-titular">
+        <small id="cmp-titular-sub"></small>
+        <b id="cmp-titular-dato"></b>
+        <em id="cmp-titular-nota"></em>
       </div>
 
       <!-- Vista "Por mes": un bloque por mes con Efectivo, Digital, suma y Gastos -->
@@ -663,11 +683,16 @@
         <p id="comparar-empty" class="muted small hidden">Todavía no hay cierres ni gastos cargados.</p>
       </div>
 
-      <!-- Mes elegido: lo comparten "Por tramo" y "Equipo" -->
+      <!-- Mes elegido: lo comparten "Por turno", "Por tramo" y "Por empleado" -->
       <div class="month-nav hidden" id="cmp-nav">
         <button id="cmp-mes-anterior" class="month-nav-btn" aria-label="Mes anterior">‹</button>
         <div class="month-nav-label" id="cmp-mes-label">Mes</div>
         <button id="cmp-mes-siguiente" class="month-nav-btn" aria-label="Mes siguiente">›</button>
+      </div>
+
+      <!-- Vista "Por turno": el total de cada turno contra el mes anterior -->
+      <div id="cmp-vista-turno" class="hidden">
+        <div id="cmp-turno-contenido"></div>
       </div>
 
       <!-- Vista "Por tramo": el mes partido en días 1–10, 11–20 y 21–fin -->
