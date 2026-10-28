@@ -551,7 +551,14 @@ export function openDetalleCierre(cierre) {
   } else {
     texto = `La cerró ${cierre.cerradoPor || quien}${aLas} en CYBERCONTROL.`;
   }
-  nota.textContent = texto;
+  // Arriba de eso, quién abrió la caja y a qué hora (pedido del dueño,
+  // 2026-10-28). Lo manda CYBERCONTROL desde ese día: un cierre de antes, uno sin
+  // caja o uno cargado a mano no lo trae y queda solo la línea del cierre.
+  const horaApertura = horaDe(cierre.abiertaEn);
+  const apertura = cierre.abiertaPor
+    ? `La inició ${cierre.abiertaPor}${horaApertura ? ` a las ${horaApertura}` : ""} en CYBERCONTROL.`
+    : "";
+  nota.innerHTML = [apertura, texto].filter(Boolean).map(escapeHtml).join("<br>");
   nota.classList.toggle("alerta", alerta);
   $("#modal-detalle-cierre").classList.add("active");
 }
